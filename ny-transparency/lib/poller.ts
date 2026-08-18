@@ -35,11 +35,11 @@ export async function refreshNow(log: (msg: string) => void = console.log): Prom
   return snapshot;
 }
 
-export function startPoller(intervalMs: number, log: (msg: string) => void = console.log): void {
+export async function startPoller(intervalMs: number, log: (msg: string) => void = console.log): Promise<void> {
   const existing = readSnapshot();
   if (existing) lastHash = existing.sourceHash;
 
-  void pollOnce(log);
+  await pollOnce(log);
   timer = setInterval(() => void pollOnce(log), intervalMs);
   timer.unref?.();
 }

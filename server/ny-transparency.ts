@@ -5,7 +5,7 @@ import { log } from "./vite";
 import { startPoller } from "../ny-transparency/lib/poller";
 
 export async function setupNyTransparency(app: Express, httpServer: Server, dev: boolean) {
-  startPoller(Number(process.env.NY_TRANSPARENCY_POLL_INTERVAL_MS) || 6 * 60 * 60 * 1000, (msg) =>
+  await startPoller(Number(process.env.NY_TRANSPARENCY_POLL_INTERVAL_MS) || 6 * 60 * 60 * 1000, (msg) =>
     log(msg, "ny-transparency"),
   );
 
