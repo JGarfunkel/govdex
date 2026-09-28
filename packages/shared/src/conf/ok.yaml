@@ -1,0 +1,143 @@
+# Oklahoma locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in OK's own
+# vocabulary and structure; notes below cover only what's OK-specific.
+#
+# `educational_region` is intentionally absent: no BOCES-equivalent regional
+# agency was confirmed for Oklahoma.
+
+profile:
+  code: US-OK
+  name: Oklahoma
+  config:
+    judicial_regions: 26 # judicial districts, within 9 administrative districts
+    athletic_sections: 8 # OSSAA classifications (A, B, C, 2A-6A)
+
+concepts:
+  state:
+    local_name: Oklahoma
+    has_active_government: true
+    default_body_name: Legislature
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Oklahoma City, Tulsa, Norman, Broken Arrow, Edmond]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of County Commissioners
+    subdivisions: Cities, Towns
+    legislative_committees: true
+    committees_label: Committees
+
+  # requires 1,000+ population; may choose aldermanic mayor-council,
+  # council-manager, strong mayor-council, or a home-rule charter form
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: [council-manager, strong-mayor]
+    governance_exceptions:
+      strong-mayor: [Tulsa]
+    subdivisions: false
+
+  # under 1,000 population and governed by a 3- or 5-member Board of
+  # Trustees; a town keeps this status even if it later grows past 1,000,
+  # unless voters convert it to a city
+  town:
+    local_name: Town
+    has_active_government: true
+    default_body_name: Board of Trustees
+    executive_required: false
+    legislative_committees: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Education
+
+  scholastic_athletic_region:
+    local_name: Class
+    parent_org_name: OSSAA
+    has_active_government: false
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial District
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://services6.arcgis.com/RBtoEUQ2lmN0K3GY/arcgis/rest/services/County_Boundaries/FeatureServer/0
+    provider: Oklahoma DOT
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      COUNTY_NAME: name
+      COUNTY_FIPS_NO: attributes.county_fips
+      CNTY_SEAT: attributes.county_seat
+    note: verified 77 counties, exact match.
+
+  municipalities:
+    url: https://services.arcgis.com/3xOwF6p0r7IHIjfn/arcgis/rest/services/Municipal_Boundaries/FeatureServer/0
+    provider: CSA GIS Data Warehouse (University of Oklahoma, with the
+      Oklahoma Tax Commission)
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      CITYNAME: name
+      COUNTY: parent county
+      FIPS: jurisdiction_identifiers (scheme "census_geoid")
+    note: verified 648 records (some duplicate/annexed polygons vs. ~600
+      legal entities). No field distinguishes legal City vs. Town status —
+      a gap.
+
+  school_districts:
+    status: no live statewide OK DOE GIS API exists (CSA GIS Warehouse only
+      has fragmented per-county layers, e.g. 77 separate "County School
+      Districts" datasets — unusable as one endpoint)
+    fallback: Census TIGERweb (tigerweb.geo.census.gov/arcgis/rest/services/Census2020/School/MapServer/{0,1,2},
+      filter STATE='40') — verified Unified=416, Secondary=2,
+      Elementary=96 (total 514, close to the ~540 figure).
+
+  educational_region:
+    status: confirmed no general BOCES-equivalent exists
+    note: closest analog is CareerTech's 29 statutory Technology Center
+      Districts (vocational-only, not general shared services) — verified
+      live via services.arcgis.com/3xOwF6p0r7IHIjfn/.../Career_Technology_Districts/FeatureServer/0,
+      29 distinct districts confirmed.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS from the counties source above.

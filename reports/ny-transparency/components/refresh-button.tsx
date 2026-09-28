@@ -18,7 +18,7 @@ export function RefreshButton() {
   async function handleClick() {
     setState("loading");
     try {
-      const res = await fetch("/transparency/api/refresh", { method: "POST" });
+      const res = await fetch("/reports/ny-transparency/api/refresh", { method: "POST" });
       if (!res.ok) throw new Error("refresh failed");
       setState("idle");
       router.refresh();

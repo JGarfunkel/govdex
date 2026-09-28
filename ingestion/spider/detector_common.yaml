@@ -1,0 +1,36 @@
+# Reject words shared across the anchor-text detectors (board_detector.yaml,
+# budget_detector.yaml, ...): terms that mark a link as being about the
+# meeting/process around a thing rather than the thing itself. Each
+# detector's own loader merges this in with its own `reject` list — put a
+# word here only when it's genuinely generic across detectors; a word that
+# only makes sense for one (budget's "Committee"/"Commission", which board
+# actively wants to *match* rather than reject) stays in that detector's own
+# yaml.
+reject:
+  - "Calendar"
+  - "Meeting"
+  - "Schedule"
+  - "Alert"
+  - "Application"
+  - "Agenda"
+  - "Work Session"
+  - "Open House"
+  - "Report"
+  - "Announcement"
+  - "(PDF)"
+  - "Contact"
+  - "Email"
+  - "Brochure"
+  - "Volunteer:"
+  - "Liaison"
+  - "Apply"
+  - "Openings"
+
+# Substrings (case-insensitive) that mark a link's URL itself as the wrong
+# kind of page, independent of anchor text — checked against the full URL,
+# not word-bounded like `reject` above (these are CMS path/module names, not
+# prose words). "CivicAlerts" is CivicPlus's press-release/alert module
+# (.../CivicAlerts.aspx?AID=...): it commonly turns up with plausible-looking
+# anchor text but is never the board/budget/etc. page itself.
+reject_url:
+  - "CivicAlerts"

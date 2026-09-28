@@ -4,6 +4,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupNyTransparency } from "./ny-transparency";
+import { setupGovdex } from "./govdex";
 
 const app = express();
 app.use(express.json());
@@ -39,9 +40,15 @@ app.use((req, res, next) => {
   next();
 });
 
-//  initial website setup
-app.get("/", (_req, res) => {
-  res.redirect("/transparency");
+// earlier setup
+// app.get("/", (_req, res) => {
+//   res.redirect("/transparency");
+// });
+
+// working mockup — static representation-index page, served directly (not part of the built SPA yet)
+app.get("/representing.html", (_req, res) => {
+  console.log("request for representing.html");
+  res.sendFile(path.resolve(process.cwd(), "client", "representing.html"));
 });
 
 (async () => {
@@ -52,6 +59,9 @@ app.get("/", (_req, res) => {
 
     await setupNyTransparency(app, server, app.get("env") === "development");
     console.log("NY Transparency setup complete.");
+
+    await setupGovdex(app, server, app.get("env") === "development");
+    console.log("GovDex setup complete.");
 
     if (app.get("env") !== "development") {
       app.get("*", (req, res, next) => {

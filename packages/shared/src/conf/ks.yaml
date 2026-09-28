@@ -1,0 +1,133 @@
+# Kansas locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in KS's own
+# vocabulary and structure; notes below cover only what's KS-specific.
+#
+# `town`/`village` and `educational_region` are intentionally absent: no
+# distinct incorporated category beyond `city` was found, and no regional
+# education service agency name/count could be confirmed. Wyandotte County
+# and Kansas City, Kansas operate as a consolidated "Unified Government" —
+# not separately modeled here, same simplification used for other states'
+# consolidated city-counties (e.g. Denver, Nashville).
+
+profile:
+  code: US-KS
+  name: Kansas
+  config:
+    judicial_regions: 31 # judicial districts
+    athletic_sections: 6 # KSHSAA classifications (6A-1A)
+
+concepts:
+  state:
+    local_name: Kansas
+    has_active_government: true
+    default_body_name: Legislature
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Wichita, Overland Park, Kansas City, Topeka, Olathe]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of County Commissioners
+    subdivisions: Cities
+    legislative_committees: true
+    committees_label: Committees
+
+  # split into 3 population-based classes; Wichita is confirmed
+  # council-manager, no confirmed strong-mayor example was found
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: council-manager
+    subdivisions: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Education
+
+  scholastic_athletic_region:
+    local_name: Class
+    parent_org_name: KSHSAA
+    has_active_government: false
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial District
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://services1.arcgis.com/q2CglofYX6ACNEeu/arcgis/rest/services/Kansas_County_Boundaries/FeatureServer/0
+    provider: Kansas Geoportal / DASC (Data Access and Support Center)
+    type: ArcGIS REST FeatureServer
+    note: verified 105 counties, exact match (item is labeled "Tiger 2010" but is current data).
+
+  municipalities:
+    url: https://kanplan.ksdot.gov/arcgis_web_adaptor/rest/services/Boundaries/Corporate_City_Limits/FeatureServer/0
+    provider: Kansas DOT (KDOT), updated Sept 2025
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      CityName: name
+      CityNumber: jurisdiction_identifiers (scheme "ks_city_number")
+      CountyName: parent county
+      CityType: concept_id (Kansas's 3-class population system)
+      PopulationCensus: attributes.population_estimate (see population below)
+    note: verified 625 records, close to the ~627 figure.
+
+  school_districts:
+    url: https://services1.arcgis.com/q2CglofYX6ACNEeu/arcgis/rest/services/Kansas_Unified_School_Districts/FeatureServer/0
+    provider: Kansas Legislative Research Dept boundaries for KSDE, hosted
+      on Kansas Geoportal
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      NAME: name
+      USD: jurisdiction_identifiers (scheme "ks_usd")
+      UNSDLEA: jurisdiction_identifiers (scheme "census_lea")
+    note: verified 284 records (vs. ~286 cited).
+
+  educational_region:
+    status: confirmed to exist — resolves an earlier open question
+    note: the Kansas Association of Educational Service Agencies (KAESA,
+      kaesa.org) confirmed live as "an organization of seven education
+      service centers" (ESSDACK, Smoky Hills, Greenbush, Orion, Keystone,
+      Southwest Plains, Northwest ESC — some styled "Educational Service
+      Centers," e.g. nkesc.org). No unified API/directory endpoint for a
+      machine-readable service-area-to-district mapping — each ESC has its
+      own site.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS from the counties source above. The municipalities source's own
+      PopulationCensus field works as a quicker fallback.

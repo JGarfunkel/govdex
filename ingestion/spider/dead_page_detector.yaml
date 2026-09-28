@@ -1,0 +1,7 @@
+# Matches a <title> that marks a page as a soft-404 — the server answered
+# 200 OK, but the page itself says the content is gone (a CMS-rendered
+# "not found" page, a parked/expired domain, a suspended hosting account).
+# See deadPageDetector.ts for how this is used — checked by
+# pruneDeadCandidates.ts after an HTTP-level check already passed, since an
+# HTTP status alone can't catch this class of dead link.
+title_pattern: "\\b(?:page\\s*not\\s*found|404(?:\\s*(?:not\\s*found|error))?|not\\s*found|can(?:no|')t\\s*be\\s*found|page\\s*(?:doesn'?t|does\\s*not)\\s*exist|page\\s*(?:has\\s*been\\s*)?(?:removed|moved|expired)|content\\s*(?:not\\s*found|unavailable)|domain\\s*for\\s*sale|buy\\s*this\\s*domain|account\\s*suspended|website\\s*(?:is\\s*)?(?:not\\s*found|unavailable)|site\\s*(?:can(?:no|')t\\s*be\\s*reached|not\\s*found))\\b"

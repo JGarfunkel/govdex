@@ -1,0 +1,151 @@
+# Alaska locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in AK's own
+# vocabulary and structure; notes below cover only what's AK-specific.
+#
+# Alaska has no counties — it uses "boroughs," mapped onto the portable
+# `county` code below (same technique as LA's parishes). Only 19 organized
+# boroughs have any government at all; the remaining "Unorganized Borough"
+# (~half the state's land area, ~10% of its population) has none and is
+# administered directly by the state — not modeled as its own jurisdiction
+# here, same treatment other states give a genuinely ungoverned remainder.
+# Several organized boroughs are unified home-rule city-boroughs (Anchorage,
+# Juneau, Sitka, Skagway, Yakutat, Wrangell) combining both government
+# levels into one — also not separately modeled, for the same reason NY's
+# profile doesn't model which of its cities picked which governance form
+# per-jurisdiction beyond `governance_exceptions`.
+
+profile:
+  code: US-AK
+  name: Alaska
+  config:
+    judicial_regions: 4 # judicial districts (First/Second/Third/Fourth)
+    athletic_sections: 6 # ASAA geographic regions
+    school_districts: 19 # Regional Educational Attendance Areas (REAAs), serving the Unorganized Borough
+
+concepts:
+  state:
+    local_name: Alaska
+    has_active_government: true
+    default_body_name: State Legislature
+    executive_title: Governor
+    subdivisions: Boroughs
+    additional_subdivisions:
+      major_cities: [Anchorage, Fairbanks, Juneau]
+
+  county:
+    local_name: Borough
+    has_active_government: true
+    default_body_name: Borough Assembly
+    executive_title: Borough Mayor
+    executive_required: false
+    subdivisions: Cities
+    legislative_committees: true
+    committees_label: Committees
+
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    legislative_committees: true
+    committees_label: Committees
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Education
+
+  # for areas with no municipal government (the Unorganized Borough) — an
+  # independent school district with its own elected board, state/federal
+  # funded, but no associated local government or tax base
+  educational_region:
+    local_name: Regional Educational Attendance Area
+    local_abbrev: REAA
+    has_active_government: true
+    default_body_name: REAA School Board
+
+  scholastic_athletic_region:
+    local_name: Region
+    parent_org_name: ASAA
+    has_active_government: false
+
+  # House districts are numbered 1-40; Senate districts are lettered A-T
+  # (20 total), each pairing two adjacent House districts
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial District
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://maps.commerce.alaska.gov/server/rest/services/Community_Related/Community_Locations_and_Boundaries/MapServer/3
+    provider: Alaska DCCED/DCRA (Division of Community and Regional
+      Affairs — the actual authority on municipal status), layer "Boroughs
+      and Census Areas"
+    type: ArcGIS REST MapServer
+    field_mapping:
+      CommunityName: name
+      Census_Area: concept_id proxy — null = organized borough, "Y" =
+        census area (part of the Unorganized Borough)
+      FIPS: jurisdiction_identifiers (scheme "census_geoid")
+      EconomicRegion: attributes.economic_region
+    note: verified 30 records (19 organized boroughs + 11 census areas
+      comprising the Unorganized Borough).
+
+  municipalities:
+    url: https://maps.commerce.alaska.gov/server/rest/services/Community_Related/Community_Locations_and_Boundaries/MapServer/1
+    provider: same DCRA host, layer "City Boundaries"
+    type: ArcGIS REST MapServer
+    field_mapping:
+      CommunityName: name
+      IncorporationType: concept_id — "1st Class City," "2nd Class City," "Home Rule City"
+      IncorporationYear: attributes.incorporated_year
+      IsActive: attributes.is_active
+    note: verified 145 records. The 6 unified home-rule city-boroughs
+      (Anchorage, Juneau, Sitka, Skagway, Yakutat, Wrangell) do NOT appear
+      here — they show up only in the counties/boroughs layer above.
+      Presence in that layer + absence here is the reliable signal for a
+      unified city-borough (confirmed — "Municipality of Anchorage" returns
+      zero rows in this layer but appears in the boroughs layer, FIPS 02020).
+
+  school_districts:
+    url: https://maps.commerce.alaska.gov/server/rest/services/Education_Related/School_Districts_and_REAAs/MapServer/0
+    provider: same DCRA org — a single layer combining district and REAA
+      concepts, exactly matching this file's own dual-role design
+    type: ArcGIS REST MapServer
+    field_mapping:
+      EntityName: name
+      EntityID / SchoolDistrictID: jurisdiction_identifiers (scheme "ak_school_entity")
+      Type: concept_id — "Borough," "City," or "REAA"
+      City: attributes.host_city
+    note: verified 53 records. Source metadata verbatim states "A polygon
+      feature layer combining the school districts in organized boroughs
+      and the Regional Education Attendance Areas (REAAs) in unorganized
+      areas" — confirms the dual role directly. This is also the
+      educational_region source — no separate REAA layer needed.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the FIPS
+      from the counties source above.

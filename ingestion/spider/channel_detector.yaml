@@ -1,0 +1,26 @@
+# classify a discovered outbound link into a candidate channel
+rules:
+  - match: "facebook.com/groups/"        # member-to-member
+    kind: community                      # C
+    platform: facebook_group
+  - match: "facebook.com/"               # a page: public, comments on
+    kind: broadcast                      # B
+    platform: facebook_page
+  - match: ["discord.gg/", "slack.com/", ".slack.com"]
+    kind: community                      # C
+    platform: discord_or_slack
+  - match: ["substack.com", "mailchi.mp", "list-manage.com", "constantcontact"]
+    kind: broadcast                   # A
+    platform: newsletter
+  - match: ["twitter.com/", "x.com/"]
+    kind: broadcast                      # B
+    platform: twitter
+  - match: "instagram.com/"
+    kind: broadcast                      # B
+    platform: instagram
+  - match: "youtube.com/"
+    kind: broadcast                      # B
+    platform: youtube
+affiliation_hints:                       # links that look like a related body, not a channel
+  - text_contains: ["Democratic Committee", "Republican Committee", "PTA",
+                    "Friends of", "Association", "Conservancy", "Civic Association"]

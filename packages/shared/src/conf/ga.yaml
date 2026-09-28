@@ -1,0 +1,142 @@
+# Georgia locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in GA's own
+# vocabulary and structure; notes below cover only what's GA-specific.
+
+profile:
+  code: US-GA
+  name: Georgia
+  config:
+    judicial_regions: 49 # judicial circuits (Superior Court), grouped into 10 administrative districts
+    school_districts: 16 # Regional Educational Service Agencies (RESAs)
+
+concepts:
+  state:
+    local_name: Georgia
+    has_active_government: true
+    default_body_name: General Assembly
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Atlanta, Augusta, Columbus, Savannah, Athens, Macon]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of Commissioners
+    executive_required: false
+    # larger counties (Cobb, Fulton, Gwinnett) typically have an appointed
+    # County Manager under the Board; no confirmed elected county executive
+    subdivisions: Municipalities
+    legislative_committees: true
+    committees_label: Committees
+
+  # GA law treats "city," "town," "municipality," and "village" as legally
+  # identical — purely a naming choice made at incorporation
+  city:
+    local_name: Municipality
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: [strong-mayor, council-manager]
+    governance_exceptions:
+      strong-mayor: [Atlanta]
+    subdivisions: false
+
+  # county school districts are the default; independent city districts
+  # (e.g. Buford, Gainesville) coexist within a county's boundaries
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Education
+
+  educational_region:
+    local_name: Regional Educational Service Agency
+    local_abbrev: RESA
+    has_active_government: true
+    default_body_name: RESA Board
+
+  scholastic_athletic_region:
+    local_name: Region
+    parent_org_name: GHSA
+    has_active_government: false
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial Circuit
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://services2.arcgis.com/Gqyymy5JISeLzyNM/arcgis/rest/services/Counties_2018/FeatureServer/0
+    provider: Georgia Dept of Community Affairs (DCA)
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      NAME: name
+      GEOID (or COUNTY_FIP): jurisdiction_identifiers (scheme "census_geoid")
+    note: verified 159 counties, exact match. data.georgiaspatial.org (the
+      GA GIS Clearinghouse) requires a login/cookie wall and couldn't be
+      verified programmatically — this DCA-hosted layer is the usable live
+      alternative.
+
+  municipalities:
+    url: https://services2.arcgis.com/Gqyymy5JISeLzyNM/arcgis/rest/services/Municipal_Boundaries/FeatureServer/0
+    provider: same DCA account, "Georgia Municipal Boundaries," currently maintained
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      cityname: name
+      GEOID: jurisdiction_identifiers (scheme "census_geoid")
+    note: verified 538 records. Thin schema — no parent-county field.
+
+  school_districts:
+    status: no live GaDOE/GOSA GIS boundary API found
+    note: GOSA's downloadable-data repo (download.gosa.ga.gov) is real and
+      live, with per-year CSVs including "state, RESA, and school system"
+      level data, but no dedicated machine-readable district-code/RESA
+      crosswalk file. A third-party ArcGIS layer was found
+      (services7.arcgis.com/.../Join_Features_to_Georgia_School_Districts/FeatureServer/0)
+      but has null district-code/name fields (a broken join) — not
+      recommended as authoritative.
+
+  educational_region:
+    status: no API or GIS layer — directory only
+    note: 16 RESAs confirmed via gadoe.org/contact/georgia-resa/ (Northwest,
+      North Georgia, Pioneer, Metro, Northeast, West Georgia, Griffin,
+      Oconee, Middle Georgia, CSRA, Chattahoochee-Flint, Heart of Georgia,
+      First District, Southwest Georgia, Coastal Plains, Okefenokee) — a
+      static directory page, not a dataset.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS from the counties source above.

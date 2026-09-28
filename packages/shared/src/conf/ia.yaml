@@ -1,0 +1,142 @@
+# Iowa locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in IA's own
+# vocabulary and structure; notes below cover only what's IA-specific.
+#
+# `town`/`village` are intentionally absent: Iowa has no separate
+# incorporated municipal category distinct from `city`. Iowa townships also
+# aren't modeled — unlike MN/WI, they're a limited-purpose administrative
+# layer (Census of Governments doesn't count them as separate governments,
+# and a township's offices are abolished outright where a city's boundaries
+# coincide with it), not an active general-purpose government.
+
+profile:
+  code: US-IA
+  name: Iowa
+  config:
+    judicial_regions: 8 # judicial districts
+    school_districts: 9 # Area Education Agencies (AEAs)
+
+concepts:
+  state:
+    local_name: Iowa
+    has_active_government: true
+    default_body_name: General Assembly
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Des Moines, Cedar Rapids, Davenport, Sioux City, Iowa City]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of Supervisors
+    subdivisions: Cities
+    legislative_committees: true
+    committees_label: Committees
+
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: council-manager
+    subdivisions: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: School Board
+
+  educational_region:
+    local_name: Area Education Agency
+    local_abbrev: AEA
+    has_active_government: true
+    default_body_name: AEA Board
+
+  # boys' and girls' sports are sanctioned by two separate bodies (IHSAA
+  # and IGHSAU respectively); both use a similar enrollment-class structure
+  scholastic_athletic_region:
+    local_name: Class
+    parent_org_name: IHSAA
+    has_active_government: false
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial District
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://services.arcgis.com/vPD5PVLI6sfkZ5E4/arcgis/rest/services/Iowa_County_Boundaries_Census/FeatureServer/0
+    provider: Iowa Geospatial Data Clearinghouse, "Iowa County Boundaries (Census)"
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      NAME: name
+      GEOID: jurisdiction_identifiers (scheme "census_geoid")
+      IADOMID: jurisdiction_identifiers (scheme "iowa_dom_id")
+    note: verified 99 counties, exact match. A generic hub slug
+      ("iowa::iowa-county-boundaries") resolves to a mislabeled nationwide
+      3,143-county layer — avoid it, use the item above instead.
+
+  municipalities:
+    url: https://services.arcgis.com/8lRhdTsQyJpO52F1/arcgis/rest/services/City_View/FeatureServer/0
+    provider: Iowa DOT Open Data, "City"
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      CITY_NAME: name
+      CITY_NUMBER: jurisdiction_identifiers (scheme "ia_city_number")
+      COUNTY_NUMBER: parent county
+      CORP_YEAR: attributes.incorporated_year
+    note: verified 938 records, matches ~940.
+
+  school_districts:
+    url: https://services.arcgis.com/vPD5PVLI6sfkZ5E4/arcgis/rest/services/CurrentIowaSchoolDistricts/FeatureServer/0
+    provider: same Iowa Geospatial Data Clearinghouse
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      SchoolDistName: name
+      DE_DIST (or DOM_ID): jurisdiction_identifiers (scheme "ia_de_dist")
+      UNIFIED: concept_id
+      AEA_NUM / AEA_Name: parent Area Education Agency — see educational_region below
+    note: verified 324 records, matches ~327.
+
+  educational_region:
+    url: https://services.arcgis.com/vPD5PVLI6sfkZ5E4/arcgis/rest/services/IowaAEAs/FeatureServer/0
+    provider: same Iowa Geospatial Data Clearinghouse, "IowaAEAs"
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      AEA_Name: name
+      AEA_NUM: identifier
+    note: verified 9 AEAs, exact match.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS from the counties source above.

@@ -1,0 +1,53 @@
+# Local Postgres for GovDex. Uses postgis/postgis from the start (rather than
+# the doc's later image swap) so t03 needs no image change when it's ready.
+#
+# Host port 5433, not 5432: a separate, unrelated "govdex" repo elsewhere on
+# this machine (a community-garden app) already binds 5432 for its own
+# Postgres. An explicit project `name` avoids docker compose inferring an
+# ambiguous project name from this directory.
+name: nycivic-govdex
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: atlas_civic
+      POSTGRES_PASSWORD: atlas_civic
+      POSTGRES_DB: atlas_civic
+    ports: ["5433:5432"]
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ../packages/db:/schema:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atlas_civic"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # `npm run govdex:crawl-worker` (ingestion/spider/worker.ts) — polls
+  # crawl_jobs for website edits and runs a crawl for each. env_file loads
+  # the repo's .env for API keys etc.; DATABASE_URL is overridden below
+  # since .env points at localhost:5433 (the host-mapped port), while this
+  # container reaches Postgres over the compose network as db:5432.
+  #
+  # Local dev: skip this container and instead set CRAWL_IN_SERVER_THREAD=true
+  # in .env — server/govdex.ts then runs the worker in-process with `npm run
+  # dev`, so it restarts with the rest of the dev server instead of needing a
+  # docker image rebuild on every code change.
+  crawl-worker:
+    build:
+      context: ..
+      dockerfile: infra/crawl-worker.Dockerfile
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql://atlas_civic:atlas_civic@db:5432/atlas_civic
+    volumes:
+      # Share the host's page cache (ingestion/spider/cache.ts) so pages this
+      # container fetches land in the same place `npm run govdex:spider` on
+      # the host does, instead of a copy inside the container's own
+      # filesystem that's lost on rebuild/restart.
+      - ../data/govdex/page-cache:/app/data/govdex/page-cache
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped

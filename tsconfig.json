@@ -1,6 +1,6 @@
 {
   "include": ["client/src/**/*", "server/**/*"],
-  "exclude": ["node_modules", "build", "dist", "ny-transparency", "**/*.test.ts"],
+  "exclude": ["node_modules", "build", "dist", "reports/ny-transparency", "**/*.test.ts"],
   "compilerOptions": {
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",

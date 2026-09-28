@@ -1,0 +1,29 @@
+{
+  "jurisdictionName": "Rye",
+  "urls": [
+    {
+      "url": "https://www.ryetownny.gov/citizen_request_center/government/boards_committees.php",
+      "reason": "404 ",
+      "status": 404,
+      "blacklistedAt": "2026-09-24T02:35:13.517Z"
+    },
+    {
+      "url": "https://www.ryetownny.gov/citizen_request_center/government/park_commission/index.php",
+      "reason": "404 ",
+      "status": 404,
+      "blacklistedAt": "2026-09-24T02:35:13.706Z"
+    },
+    {
+      "url": "https://www.ryetownny.gov/government/park_commission/government/boards_committees.php",
+      "reason": "404 ",
+      "status": 404,
+      "blacklistedAt": "2026-09-24T02:35:13.887Z"
+    },
+    {
+      "url": "https://www.townofryeny.com/requirement/sustainability",
+      "reason": "404 ",
+      "status": 404,
+      "blacklistedAt": "2026-09-24T02:35:14.842Z"
+    }
+  ]
+}

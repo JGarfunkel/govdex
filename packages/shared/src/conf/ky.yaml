@@ -1,0 +1,138 @@
+# Kentucky locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in KY's own
+# vocabulary and structure; notes below cover only what's KY-specific.
+#
+# `scholastic_athletic_region` is intentionally absent: KHSAA's numbered
+# districts/regions vary by sport with no single stable statewide count.
+
+profile:
+  code: US-KY
+  name: Kentucky
+  config:
+    judicial_regions: 57 # judicial circuits (Circuit Court); some span up to 4 counties
+
+concepts:
+  state:
+    local_name: Kentucky
+    has_active_government: true
+    default_body_name: General Assembly
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Louisville, Lexington, Bowling Green, Owensboro]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Fiscal Court
+    executive_title: County Judge/Executive
+    executive_required: true
+    subdivisions: Cities
+    legislative_committees: true
+    committees_label: Committees
+
+  # KY abolished its old 6-class population system in 2015 — every
+  # municipality is now legally just a "city" (no town/village category);
+  # Louisville/Jefferson County is a consolidated city-county government
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: [strong-mayor, council-manager]
+    governance_exceptions:
+      strong-mayor: [Louisville]
+    subdivisions: false
+
+  # 120 county districts + 51 independent (city/town-based) districts
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Education
+
+  # regional shared-service bodies (e.g. Northern Kentucky Cooperative,
+  # Central Kentucky Educational Cooperative) — not one uniform statewide
+  # statutory system, so no count is tracked in config
+  educational_region:
+    local_name: Educational Cooperative
+    has_active_government: true
+    default_body_name: Cooperative Board
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial Circuit
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://kygisserver.ky.gov/arcgis/rest/services/WGS84WM_Services/Ky_CountyLines_WGS84WM/MapServer/0
+    provider: KyGeoNet / KY Division of Geographic Information
+    type: ArcGIS REST MapServer
+    note: verified 120 counties, exact match.
+
+  municipalities:
+    url: https://kygisserver.ky.gov/arcgis/rest/services/WGS84WM_Services/Ky_CityBnd_Polygon_WGS84WM/MapServer/0
+    provider: same KyGeoNet host, "Corporate Boundary Polygons"
+    type: ArcGIS REST MapServer
+    field_mapping:
+      NAME: name
+      FIPS (or CITYFIPS): jurisdiction_identifiers (scheme "census_geoid")
+      COUNTY: parent county
+      SOSLINK: website (Secretary of State link)
+    note: verified 426 records (slightly above ~418 — likely includes
+      non-contiguous annexed parts as separate polygons; de-duplicate by
+      NAME/FIPS on ingest).
+
+  school_districts:
+    url: https://kygisserver.ky.gov/arcgis/rest/services/WGS84WM_Services/Ky_School_Districts_WGS84WM/MapServer/0
+    provider: same KyGeoNet host
+    type: ArcGIS REST MapServer
+    field_mapping:
+      NAME: name
+      SDLEA: jurisdiction_identifiers (scheme "ky_sdlea")
+      SDTYP: concept_id (county vs. independent)
+    note: verified 174 records.
+
+  educational_region:
+    status: no live GIS/API — directory only
+    note: 8 Educational Cooperatives confirmed via a KDE-hosted directory
+      (education.ky.gov/comm/about/Pages/Kentucky-Education-and-Special-Education-Cooperatives.aspx) —
+      Central KY, Green River Regional, KY Educational Development Corp, KY
+      Valley, Northern KY Coop, Ohio Valley, Southeast/South Central, West
+      KY — static page, would need manual/scraped entry (8 rows).
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS from the counties source above.

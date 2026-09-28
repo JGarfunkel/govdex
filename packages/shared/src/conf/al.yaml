@@ -1,0 +1,141 @@
+# Alabama locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in AL's own
+# vocabulary and structure; notes below cover only what's AL-specific.
+#
+# `educational_region` is intentionally absent: Alabama's Regional
+# In-Service Centers are teacher professional-development hubs, not a
+# BOCES-style jurisdiction with its own governing body.
+
+profile:
+  code: US-AL
+  name: Alabama
+  config:
+    judicial_regions: 41 # judicial circuits
+    athletic_sections: 8 # AHSAA classifications (6 public 1A-6A + 2 private AA/A)
+
+concepts:
+  state:
+    local_name: Alabama
+    has_active_government: true
+    default_body_name: Legislature
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Birmingham, Montgomery, Huntsville, Mobile, Tuscaloosa]
+
+  # county government is fragmented across independently elected row
+  # offices (probate judge, sheriff, tax officials) rather than a single
+  # chief executive
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: County Commission
+    subdivisions: Cities, Towns
+    legislative_committees: true
+    committees_label: Committees
+
+  # a real, distinct legal category from `city` by population (city:
+  # 2,000+, town: under 2,000) — no "village" category exists
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: strong-mayor
+    subdivisions: false
+
+  town:
+    local_name: Town
+    has_active_government: true
+    default_body_name: Town Council
+    executive_title: Mayor
+    executive_required: false
+    legislative_committees: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Education
+
+  scholastic_athletic_region:
+    local_name: Class
+    parent_org_name: AHSAA
+    has_active_government: false
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial Circuit
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://maps.alabama.gov/algogis/rest/services/Counties/MapServer/0
+    provider: State of Alabama GIS (ALGOGIS)
+    type: ArcGIS REST MapServer
+    note: verified 67 counties, exact match.
+
+  municipalities:
+    url: https://services7.arcgis.com/jF2q3LPxL7PETdYk/arcgis/rest/services/Alabama_Incorporated_Cities_Boundaries/FeatureServer/0
+    provider: ALGeoHub (ArcGIS Online) — the state's own ALGOGIS server only
+      exposes Counties, not municipalities or schools
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      NAME: name
+      PLACEFP: attributes.place_fips
+      GEOID: jurisdiction_identifiers (scheme "census_geoid")
+      County_Cod: parent county
+    note: verified 468 records (close to ~460 expected; slight overcount
+      plausibly from duplicate annexation entries). No field distinguishes
+      City vs. Town legal class (population >=2,000 = city) — that
+      distinction would need to be derived/joined separately.
+
+  school_districts:
+    url: https://services7.arcgis.com/jF2q3LPxL7PETdYk/arcgis/rest/services/Alabama_Public_School_System_Districts/FeatureServer/0
+    provider: same ALGeoHub host
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      NAME: name
+      UNSDLEA: jurisdiction_identifiers (scheme "al_lea")
+      GEOID: jurisdiction_identifiers (scheme "census_geoid")
+      SDTYP: concept_id
+    note: verified 139 records (matches ~138 expected — captures both county
+      and city systems in one layer).
+
+  educational_region:
+    status: confirmed none beyond professional-development function
+    note: Alabama's 11 Regional In-Service Centers (the ARIC network,
+      established 1984, run as higher-ed/ALSDE partnerships) are purely PD
+      delivery, governed by independent boards — not a jurisdictional/
+      administrative layer analogous to BOCES.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS from the counties source above.

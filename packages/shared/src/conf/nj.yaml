@@ -1,0 +1,158 @@
+# New Jersey locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in NJ's own
+# vocabulary and structure; notes below cover only what's NJ-specific.
+
+profile:
+  code: US-NJ
+  name: New Jersey
+  config:
+    villages_exist: false # only one legacy Village (Loch Arbour) remains, and even it now runs under a standard charter — no functioning village government type left
+    judicial_regions: 15 # vicinages (multi-county Superior Court groupings)
+    athletic_sections: 4 # NJSIAA North1 / North2 / Central / South
+    # no school_districts count: Educational Services Commissions overlap
+    # counties rather than tiling them one-per-region like NY's BOCES
+
+concepts:
+  state:
+    local_name: New Jersey
+    has_active_government: true
+    default_body_name: State Legislature
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Newark, Jersey City, Paterson, Elizabeth, Edison, Trenton, Camden, Atlantic City]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of County Commissioners
+    executive_title: County Executive
+    executive_required: false
+    # only 5 of 21 counties (Atlantic, Bergen, Essex, Hudson, Mercer) have a
+    # directly elected County Executive; elsewhere the Board of County
+    # Commissioners itself holds combined executive + legislative authority
+    subdivisions: Municipalities
+    legislative_committees: true
+    committees_label: Committees
+
+  # NJ's 5 traditional municipal types (City, Town, Township, Borough,
+  # Village) are legally equal — governance tracks whichever charter form a
+  # municipality has adopted (a traditional form, or one of the Faulkner Act
+  # forms: Mayor-Council, Council-Manager, etc.), not its type name. So they
+  # all fold under this one concept rather than NY's separate city/town/village.
+  city:
+    local_name: Municipality
+    has_active_government: true
+    default_body_name: Municipal Council
+    executive_title: Mayor
+    governance: [strong-mayor, council-manager]
+    subdivisions: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Education
+
+  educational_region:
+    local_name: Educational Services Commission
+    local_abbrev: ESC
+    has_active_government: true
+    default_body_name: ESC Board
+
+  scholastic_athletic_region:
+    local_name: Section
+    parent_org_name: NJSIAA
+    has_active_government: false
+
+  # NJ's Assembly and Senate districts share the same numbering (1-40) —
+  # each of the 40 legislative districts elects 1 Senator + 2 Assembly
+  # members, unlike states where the two chambers are drawn independently
+  state_house_district:
+    local_name: General Assembly District
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Vicinage
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  # a separately elected mayor with real executive power distinct from the
+  # council — the dominant Faulkner Act form, and also the practical shape
+  # of the traditional City/Town/Borough forms; no specific NJ municipalities
+  # confirmed for governance_exceptions yet
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://services2.arcgis.com/XVOqAjTOJ5P6ngMu/arcgis/rest/services/NJ_Counties_3857/FeatureServer/0
+    provider: NJGIN Open Data (NJOGIS)
+    type: ArcGIS REST FeatureServer
+    note: verified 21 counties, exact match.
+
+  municipalities:
+    url: https://services2.arcgis.com/XVOqAjTOJ5P6ngMu/arcgis/rest/services/NJ_Municipalities_3857/FeatureServer/0
+    provider: same NJOGIS host
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      MUN: name
+      COUNTY: parent county
+      MUN_TYPE: concept_id (City/Town/Township/Borough/Village)
+      GNIS: jurisdiction_identifiers (scheme "gnis")
+      MUN_CODE: jurisdiction_identifiers (scheme "nj_mun_code")
+      CENSUS2020 / POP2020: attributes.population_estimate (see population below)
+    note: verified 564 records, exact match. Alternate Socrata source also
+      confirmed live at data.nj.gov/resource/k9xb-zgh4.json ("Municipalities
+      of New Jersey"), which carries NJ 1040/DCA/GNIS/FIPS code crosswalks
+      per municipality.
+
+  school_districts:
+    url: https://services2.arcgis.com/XVOqAjTOJ5P6ngMu/arcgis/rest/services/School_Districts___Unified/FeatureServer/0
+    provider: same NJOGIS host — split into 3 separate FeatureServers by
+      district type rather than one combined layer
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      DIST_NAME: name
+      NJDOE_ID_U: jurisdiction_identifiers (scheme "njdoe_id")
+      SD_TYPE: concept_id
+      GEOID: jurisdiction_identifiers (scheme "census_geoid")
+    note: verified Unified=339, Elementary (.../School_Districts___Elementary/FeatureServer/0)=171,
+      Secondary (.../School_Districts___Secondary/FeatureServer/0)=46 — sum
+      ≈556, consistent with NJ's granular ~600+ district landscape (multiple
+      district types can serve overlapping grade ranges).
+
+  educational_region:
+    status: genuine gap — no live API, GIS layer, or comprehensive published list found
+    note: NJ DOE's Data & Reports Portal (nj.gov/education/doedata/) has no
+      ESC directory/dataset. Individual Educational Services Commission
+      websites exist (e.g. escnj.us) but there is no authoritative
+      aggregator.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS from the counties source above. The municipalities source's own
+      CENSUS2020/POP2020 fields work as a quicker fallback.

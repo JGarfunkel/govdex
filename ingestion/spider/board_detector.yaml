@@ -1,0 +1,76 @@
+# Anchor text patterns that suggest a link names a jurisdiction-internal
+# board/committee/commission — a candidate for add-body.ts to formalize,
+# not a channel (channel_detector.yaml) or an external affiliated group
+# (channel_detector.yaml's affiliation_hints).
+#
+# Checked BEFORE the committee hints below, and mutually exclusive with
+# them: text shaped like "<1-3 words> <type> District" (school, fire, sewer,
+# water — see district_types below) is its own jurisdiction
+# (type_concepts.level='special_district'), commonly disjoint from or
+# spanning multiple municipalities — never a committee of the page it was
+# found on, even when the name also says "Board" ("Fire District Board of
+# Commissioners"). This used to be a bare "contains the substring 'district'"
+# test, which also fired on prose mentioning a district in passing
+# ("Congressional District 17") or a link merely naming its enclosing school
+# district — requiring the full shape (leading name words, then one of these
+# types, then literally "District" and nothing else) fixes that.
+district_types:
+  - "School"
+  - "Fire"
+  - "Sewer"
+  - "Water"
+
+# Consumed by two functions in boardDetector.ts, both of which also treat
+# "Committee" and "Board" as hint words (hardcoded there rather than listed
+# here, since every jurisdiction wants them):
+#   - isBodyShaped() matches a single body's name: true as soon as ONE hint
+#     word is the first word, the last word, or (right after "Advisory")
+#     the second word of the anchor text — not merely present anywhere in
+#     it. That's what keeps "Council" from matching inside "Councilman"/
+#     "Councilwoman" or inside an unrelated document title that just
+#     happens to mention one along the way.
+#   - isIndexShaped() reuses the same words, pluralized, to recognize a hub
+#     link like "Boards and Commissions" that names several kinds of body
+#     rather than one specific body — every comma/"and"/"&"-separated part
+#     of the text must be one of the pluralized hint words.
+# Only single-word hints take part in either check. "Task Force" is
+# special-cased in isBodyShaped() as the one two-word hint; any other
+# multi-word entry is silently dropped by both functions' `.filter((h) =>
+# !h.includes(" "))` and has no effect at all.
+
+hints:
+  - "Commission"
+  - "Council"
+  - "Authority"
+  - "Task Force"
+  - "Board of Appeals"
+  - "Sustainable"
+
+# Text that would otherwise match a hint above but is almost never worth
+# proposing as a *new* body — the jurisdiction's own already-known governing
+# body, a separate taxing jurisdiction (school district), or nav chrome.
+exclude:
+  - "Town Board"
+  # Rye Town's governing body is called the "Town Council", not the "Town
+  # Board" like every other NY town — same exclusion, just under its local
+  # name. Matched as a suffix (see boardDetector.ts), so a site that spells
+  # it out with the jurisdiction's own name ("Rye Town Council") still
+  # matches without listing every jurisdiction's name here.
+  - "Town Council"
+  - "Village Board"
+  # A village's governing body under NY Village Law — the villages'
+  # equivalent of "Village Board" above, not an advisory committee. Without
+  # this, isBodyShaped()'s first-word "Board" check would propose it as a
+  # new committee and default it to the 'advisory' category.
+  - "Board of Trustees"
+  - "City Council"
+  - "County Legislature"
+  - "Board of Elections"
+  - "School Board"
+  - "Board of Education"
+  - "Board of Trustees"
+  # A real body, but a NYS one (oversees FOIL/Open Meetings Law) — not a
+  # committee of whatever jurisdiction's page links to it, and now matched
+  # by isBodyShaped()'s first-word check ("Committee on ...").
+  - "Committee on Open Government"
+  - "Minutes"

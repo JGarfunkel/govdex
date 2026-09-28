@@ -1,0 +1,160 @@
+# Washington locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in WA's own
+# vocabulary and structure; notes below cover only what's WA-specific.
+
+profile:
+  code: US-WA
+  name: Washington
+  config:
+    villages_exist: false # WA has no "village" category — only city and town (see the `town` concept below)
+    judicial_regions: 32 # Superior Court judicial districts, for 39 counties (several less-populous counties share a district)
+    athletic_sections: 9 # WIAA districts
+    school_districts: 9 # Educational Service Districts (ESDs)
+
+concepts:
+  state:
+    local_name: Washington
+    has_active_government: true
+    default_body_name: State Legislature
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Seattle, Spokane, Tacoma, Vancouver, Bellevue, Everett, Kent, Renton]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of County Commissioners
+    executive_title: County Executive
+    executive_required: false
+    # only 4 of the 7 home-rule charter counties (King, Pierce, Snohomish,
+    # Whatcom) have replaced the commission with a separately elected County
+    # Council + County Executive; elsewhere the Board of County
+    # Commissioners itself holds combined executive + legislative authority
+    subdivisions: Cities, Towns
+    legislative_committees: true
+    committees_label: Committees
+
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: [strong-mayor, council-manager]
+    subdivisions: false
+
+  # a distinct, smaller statutory class (population under 1,500 at
+  # organization) — 68 towns, all strong-mayor form; no new towns may be
+  # formed under current law. `village` has no equivalent in WA.
+  town:
+    local_name: Town
+    has_active_government: true
+    default_body_name: Town Council
+    executive_title: Mayor
+    governance: strong-mayor
+    subdivisions: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Directors
+
+  educational_region:
+    local_name: Educational Service District
+    local_abbrev: ESD
+    has_active_government: true
+    default_body_name: ESD Board
+
+  scholastic_athletic_region:
+    local_name: District
+    parent_org_name: WIAA
+    has_active_government: false
+
+  state_house_district:
+    local_name: Legislative District
+    local_abbrev: LD
+    # WA uses one combined numbered district (49 total) electing 1 Senator +
+    # 2 Representatives, rather than separately numbered House/Senate seats
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Legislative District
+    local_abbrev: LD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Superior Court District
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  # a separately elected mayor with real executive power distinct from the
+  # council — the oldest/most common model, though most incorporations and
+  # form-changes since 1970 have chosen council-manager instead; no specific
+  # WA cities confirmed for governance_exceptions yet
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://gis.dnr.wa.gov/site3/rest/services/Public_Boundaries/WADNR_PUBLIC_Cadastre_OpenData/FeatureServer/11
+    provider: Washington State Dept of Natural Resources (WA DNR)
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      JURISDICT_NM: name
+      JURISDICT_FIPS_DESG_CD: attributes.county_fips
+      JURISDICT_TYPE_CD: concept_id
+    note: verified 39 counties.
+
+  municipalities:
+    url: https://webgis.dor.wa.gov/arcgis/rest/services/Ref/Cities/FeatureServer/0
+    provider: WA Dept of Revenue, sourced from the Office of Financial
+      Management's annexation records, updated quarterly
+    type: ArcGIS REST FeatureServer
+    note: verified 299 cities and towns combined (includes FIPS codes).
+
+  school_districts:
+    url: https://services9.arcgis.com/fWunDXKkvCx1CM4b/arcgis/rest/services/Washington_School_Districts/FeatureServer/0
+    provider: OSPI (Office of Superintendent of Public Instruction), published on geo.wa.gov
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      LEACode_1: jurisdiction_identifiers (scheme "wa_lea")
+      LEAName_1 (or ShortName): name
+      County: parent county
+      ESDCode / ESDNumber / ESDName: parent Educational Service District — see educational_region below
+    note: verified 295 districts, matching the expected count.
+
+  educational_region:
+    url: https://services9.arcgis.com/fWunDXKkvCx1CM4b/arcgis/rest/services/Washington_School_Districts/FeatureServer/0
+    provider: same OSPI service — ESD fields are embedded directly on every
+      school-district record rather than published as a separate ESD entity table
+    field_mapping:
+      ESDNumber: local_abbrev / identifier
+      ESDName: name
+    note: verified all 9 ESDs by distinct ESDNumber/ESDName query (101, 105,
+      112, 113, 114, 121, 123, 171, 189). A standalone ESD boundary layer
+      also exists on geo.wa.gov (OSPI::educational-service-districts-esds-1)
+      but its page is JS-rendered with no directly extractable REST
+      endpoint — use the school-districts service above instead.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS already captured by the counties source above.

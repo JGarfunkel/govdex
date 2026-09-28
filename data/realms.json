@@ -1,4 +1,4 @@
-{
+  {
     "layout": {
         "showHeader": false,
         "onMapClick": ["sidebar"]
@@ -19,6 +19,16 @@
         "stateProvince": "NY",
         "county": "Westchester"
       }
-   }
+   },
+   {
+      "id": "nyc",
+      "name": "New York City",
+      "displayName": "New York City",
+      "description": "New York City dashboards",
+      "ruleType": "dashboards",
+      "datapath": "nyc",
+      "entityType": "transportation",
+      "entityFile": "nyc-dashboards.json"
+    }
 ]
 }

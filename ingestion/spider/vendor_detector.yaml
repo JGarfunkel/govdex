@@ -1,0 +1,153 @@
+# Known civic-tech vendor domains, matched against every link/iframe/script
+# src found on a cached page. `function` lines up with product_functions.code
+# in packages/db/schema.sql where a matching row exists; 'code_publishing'
+# isn't seeded there yet (eCode360/Municode don't fit any of the seven
+# current functions) — left as-is for a human to decide when this graduates
+# from report-only to writing `products`/`adoptions` rows.
+rules:
+  - match: ["accela.com"]
+    vendor: Accela
+    function: permitting
+  - match: ["aurigo.com"]
+    vendor: Aurigo
+    function: capital_planning
+  - match: ["authorium.com"]
+    vendor: Authorium
+    function: agenda_minutes
+  - match: ["avolvesoftware.com"]
+    vendor: "Avolve Software"
+    function: permitting
+  - match: ["axon.com"]
+    vendor: Axon
+    function: public_safety
+  - match: ["binti.com"]
+    vendor: Binti
+    function: case_management
+  - match: ["boarddocs.com"]
+    vendor: BoardDocs
+    function: agenda_minutes
+  - match: ["bsasoftware.com"]
+    vendor: "BS&A Software"
+    function: permitting
+  - match: ["casebook.net"]
+    vendor: Casebook
+    function: case_management
+  - match: ["centralsquare.com"]
+    vendor: "CentralSquare Technologies"
+    function: permitting
+  - match: ["citibot.io"]
+    vendor: CitiBot
+    function: notification
+  - match: ["civicplus.com", "civicengage.com", "civicclerk.com"]
+    vendor: CivicPlus
+    function: website_cms
+  - match: ["cleargov.com"]
+    vendor: ClearGov
+    function: budget_transparency
+  - match: ["clerkbase.com"]
+    vendor: ClerkBase
+    function: agenda_minutes
+  - match: ["diligentoneplatform.com"]
+    vendor: Diligent
+    function: agenda_minutes
+  - match: ["easyvotesolutions.com"]
+    vendor: "EasyVote Solutions"
+    function: elections
+  - match: ["ecode360.com"]
+    vendor: eCode360
+    function: code_publishing
+  - match: ["escribemeetings.com"]
+    vendor: eSCRIBE
+    function: agenda_minutes
+  - match: ["firstdue.com"]
+    vendor: "First Due"
+    function: public_safety
+  - match: ["govwell.com"]
+    vendor: GovWell
+    function: permitting
+  - match: ["granicus.com", "granicusideas.com"]
+    vendor: Granicus
+    function: video_streaming
+  - match: ["iqm2.com"]
+    vendor: "IQM2 (AgendaQuick)"
+    function: agenda_minutes
+  - match: ["lariticloud.com"]
+    vendor: Lariti
+    function: permitting
+  - match: ["legistar.com"]
+    vendor: Legistar
+    function: agenda_minutes
+  - match: ["municipay.com"]
+    vendor: MuniciPay
+    function: payments
+  - match: ["municode.com", "municodenext.com", "library.municode.com"]
+    vendor: Municode
+    function: code_publishing
+  - match: ["novusagenda.com"]
+    vendor: NovusAGENDA
+    function: agenda_minutes
+  - match: ["procurement.opengov.com"]
+    vendor: "OpenGov Procurement"
+    function: procurement
+  - match: ["opengov.com"]
+    vendor: OpenGov
+    function: permitting
+  - match: ["payitgov.com"]
+    vendor: PayIt
+    function: payments
+  - match: ["permitflow.com"]
+    vendor: PermitFlow
+    function: permitting
+  - match: ["polco.us"]
+    vendor: Polco
+    function: community_engagement
+  - match: ["rapidsos.com"]
+    vendor: RapidSOS
+    function: public_safety
+  - match: ["revize.com"]
+    vendor: Revize
+    function: website_cms
+  - match: ["swagit.com"]
+    vendor: Swagit
+    function: video_streaming
+  - match: ["tylertech.com", "tylerhost.net"]
+    vendor: "Tyler Technologies"
+    function: permitting
+  - match: ["versaterm.com"]
+    vendor: Versaterm
+    function: public_safety
+
+# Hosts that are never vendor candidates, so they don't drown out real
+# unknowns in the "unclassified external links" report: analytics/fonts/CDN
+# infra, plus the social/community/newsletter domains channel_detector.yaml
+# already accounts for as *channels*, not vendors.
+ignore_hosts:
+  - google-analytics.com
+  - googletagmanager.com
+  - googleapis.com
+  - gstatic.com
+  - google.com
+  - recaptcha.net
+  - jquery.com
+  - jsdelivr.net
+  - cloudflare.com
+  - cdnjs.cloudflare.com
+  - bootstrapcdn.com
+  - fontawesome.com
+  - w3.org
+  - schema.org
+  - addthis.com
+  - addthiscdn.com
+  - facebook.com
+  - fb.com
+  - twitter.com
+  - x.com
+  - instagram.com
+  - youtube.com
+  - youtu.be
+  - discord.gg
+  - slack.com
+  - substack.com
+  - mailchi.mp
+  - list-manage.com
+  - constantcontact.com

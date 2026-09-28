@@ -1,0 +1,151 @@
+# Maine locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in ME's own
+# vocabulary and structure; notes below cover only what's ME-specific.
+#
+# `village` is intentionally absent: Maine's "village corporations" are
+# narrow special-purpose districts (streetlighting, sidewalks) inside a
+# town, not full incorporated municipalities. Over half of Maine's land
+# area is Unorganized Territory (435 townships, ~9,000 residents) with no
+# local government at all — the Legislature itself acts as its governing
+# body, with county commissioners standing in for municipal services; not
+# separately modeled here, same treatment as other states' ungoverned
+# remainders (e.g. Alaska's Unorganized Borough).
+
+profile:
+  code: US-ME
+  name: Maine
+  config:
+    judicial_regions: 8 # Superior Court judicial regions (justices ride circuit across the 16 counties)
+    athletic_sections: 4 # MPA classes (A/B/C/D; some sports add Class S)
+
+concepts:
+  state:
+    local_name: Maine
+    has_active_government: true
+    default_body_name: Legislature
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Portland, Lewiston, Bangor, South Portland]
+
+  # a board of elected Commissioners (3, 5, or 7 depending on county); no
+  # single elected chief executive
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of County Commissioners
+    subdivisions: Towns
+    legislative_committees: true
+    committees_label: Committees
+
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    # Portland's directly-elected mayor is still just one of 9 council
+    # votes, with a city manager running operations — council-embedded, not
+    # a strong mayor; no confirmed ME strong-mayor city was found
+    governance: council-manager
+    subdivisions: false
+
+  town:
+    local_name: Town
+    has_active_government: true
+    default_body_name: Select Board
+    governance: town-meeting
+    subdivisions: false
+
+  # ME's "SAU" (School Administrative Unit) is the school district itself
+  # (single- or multi-town), unlike NH/VT where the SAU/Supervisory Union is
+  # a separate overlay atop independently-governed local districts
+  school_district:
+    local_name: School Administrative Unit
+    local_abbrev: SAU
+    has_active_government: true
+    default_body_name: School Board
+
+  scholastic_athletic_region:
+    local_name: Class
+    parent_org_name: MPA
+    has_active_government: false
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial Region
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+  town-meeting:
+    legislative_committees: false
+    legislative_districts: false
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    status: no standalone polygon service found
+    note: every record in the municipalities source below carries COUNTY/
+      CNTYCODE fields, giving all 16 counties via a distinct-value query.
+    fallback: Census TIGER national counties file, filtered STATEFP=23.
+
+  municipalities:
+    url: https://services1.arcgis.com/RbMX0mRVOFNTdLzd/arcgis/rest/services/Maine_Town_and_Townships_Boundary_Polygons/FeatureServer/0
+    provider: Maine Office of GIS
+    type: ArcGIS REST FeatureServer (a dissolved variant also exists at
+      .../Maine_Town_and_Townships_Boundary_Polygons_Dissolved/FeatureServer/0)
+    field_mapping:
+      TOWN: name
+      COUNTY / CNTYCODE: parent county
+      GEOCODE / GEOCODENUM: jurisdiction_identifiers (scheme "me_geocode")
+      TYPE / TAG: concept_id — distinguishes organized towns from
+        Unorganized Territory townships/islands
+    note: raw layer verified at 8,421 records (individually-mapped organized
+      towns plus hundreds of separate Unorganized Territory townships/
+      islands); the dissolved variant verified at 924 (still well above the
+      ~488 organized municipalities, for the same UT-subdivision reason) —
+      filter by TYPE/TAG to isolate organized towns and cities.
+
+  school_districts:
+    url: https://services1.arcgis.com/RbMX0mRVOFNTdLzd/arcgis/rest/services/School_Administrative_Units/FeatureServer/0
+    provider: Maine DOE, same ArcGIS org as the municipalities source
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      SAUName: name
+      SAUType: concept_id (Municipal School Unit / Regional School Unit /
+        Community School District / Maine School Administrative District /
+        Maine Indian Education / Unorganized Territory)
+      TOWN: member town (one row per member town per SAU — group by SAUName
+        for the true ~230 SAU/district count)
+    note: verified live, 8,040 raw rows (one per member-town-per-SAU, not
+      8,040 districts). Confirms this file's own premise — SAUType has no
+      separate "overlay" category — Maine's SAU IS the district, no
+      BOCES-equivalent layer exists or is needed.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population.

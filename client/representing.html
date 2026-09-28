@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New Castle — Representation Index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+  :root{
+    --paper:#eef1f2; --card:#fbfcfc; --ink:#14191b; --soft:#5a686e; --line:#d7dddf;
+    --accent:#0e6e66; --accent-bg:#e2efed; --faint:#cbd3d4; --third:#5a3f86;
+    --dem:#2b52a0; --rep:#b23b34;
+    --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased;padding:32px 18px 80px}
+  .wrap{max-width:1060px;margin:0 auto}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 12px}
+  h1{font-size:clamp(23px,3vw,32px);font-weight:700;letter-spacing:-.02em;line-height:1.13;margin:0 0 10px}
+  .lede{font-size:15.5px;color:var(--soft);max-width:66ch;margin:0}
+  .finding{margin:20px 0 4px;padding:15px 17px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;font-size:14px}
+  .finding b{color:var(--ink)} .finding p{margin:0} .finding p+p{margin-top:7px}
+
+  .controls{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;margin:18px 0 6px;font-size:13.5px}
+  .controls .grp{display:flex;gap:13px;align-items:center}
+  .controls .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft)}
+  .chk{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+  .chk input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+  .sw{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .sw-dem{background:var(--dem)}.sw-rep{background:var(--rep)}
+
+  .scroll{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+  table{border-collapse:separate;border-spacing:0;width:100%;min-width:880px;font-size:13px}
+  thead th{position:sticky;top:0;background:var(--card);z-index:3;text-align:left}
+  .h2 th{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);font-weight:600;padding:11px 10px 4px;border-bottom:1px solid var(--line)}
+  .h2 .bcast{text-align:center;border-left:1px solid var(--line)}
+  .h2 .comm{color:var(--accent);text-align:center;border-left:1px solid var(--line);background:var(--accent-bg)}
+  .h1r th{font-family:var(--mono);font-size:9.5px;color:var(--soft);font-weight:500;padding:2px 10px 9px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:center}
+  .h1r th.l{text-align:left}
+  .h1r .comm{background:var(--accent-bg)}
+
+  tr.band td{padding:13px 12px 5px;border-bottom:1px solid var(--line)}
+  .band .t{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);font-weight:600}
+  .band .n{color:var(--soft);font-weight:400;font-size:12px;margin-left:8px}
+
+  tbody tr.ent td{border-bottom:1px solid var(--line);padding:9px 10px;vertical-align:top}
+  td.comm-cell{background:#f4f9f8}
+  .nm{font-weight:600;font-size:13.5px;line-height:1.25}
+  .placebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 0 2px}
+  .placebar .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft)}
+  #place{font-family:var(--sans);font-size:15px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);min-width:240px}
+  #place:focus{border-color:var(--accent)}
+  .placenote{font-size:13px;color:var(--soft)}
+  .empty{padding:26px 16px;color:var(--soft);font-size:14px}
+  .empty b{color:var(--ink)}
+  td.leader{font-size:12.5px;color:var(--ink);white-space:nowrap}
+  td.leader .none{color:var(--faint)}
+
+  .typemark{display:flex;align-items:center;gap:7px;white-space:nowrap}
+  .typemark i{font-size:17px}
+  .typemark svg{display:block}
+  .tlabel{font-size:11.5px;color:var(--soft)}
+
+  .glyphs{display:flex;gap:10px;justify-content:center;font-size:17px;align-items:center}
+  .glyphs i{color:var(--faint)}
+  .glyphs a{line-height:1;display:inline-flex}
+  .eff{display:none}
+
+  .legend{margin:20px 0 0;font-size:12.5px;color:var(--soft);padding:13px 15px;background:var(--card);border:1px solid var(--line);border-radius:8px}
+  .legend b{color:var(--ink)} .legend .row{margin-top:7px;display:flex;flex-wrap:wrap;gap:5px 16px;align-items:center}
+  .legend .row span{display:inline-flex;align-items:center;gap:4px}
+  .legend i{font-size:16px;vertical-align:-2px}
+  .foot{font-size:11.5px;color:var(--soft);margin-top:14px;max-width:94ch;line-height:1.5}
+  .foot b{color:var(--ink)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Representation Index · working mockup</p>
+  <h1>Who represents New Castle — broadcast vs. community</h1>
+  <p class="lede">Every body that represents you, its type, and its real channels split into <b>broadcast</b> (one-way) and <b>community</b> (two-way — a space where members actually talk). Watch which column stays empty.</p>
+
+  <div class="finding">
+    <p><b>The community column lights up exactly once.</b> Elected offices, party committees, and all nine county Democratic affinity groups have broadcast channels and no member space at all.</p>
+    <p>The one real community channel in the whole index is a Facebook <i>group</i> — and it belongs to a third-party advocacy group tied to no seat, no membership, and no party.</p>
+  </div>
+
+  <div class="placebar">
+    <label class="lbl" for="place">Address / town</label>
+    <input id="place" list="places" value="New Castle, NY" autocomplete="off" spellcheck="false" placeholder="Type your town\u2026">
+    <datalist id="places">
+      <option>New Castle, NY</option>
+      <option>Bedford, NY</option>
+      <option>Mount Kisco, NY</option>
+      <option>North Castle, NY</option>
+      <option>Yorktown, NY</option>
+      <option>Somers, NY</option>
+      <option>Pound Ridge, NY</option>
+      <option>Ossining, NY</option>
+    </datalist>
+    <span id="place-note" class="placenote"></span>
+  </div>
+
+  <div class="controls">
+    <div class="grp"><span class="lbl">Party</span>
+      <label class="chk"><input type="checkbox" id="dem" checked><span class="sw sw-dem"></span>Democratic <span style="color:var(--soft)">(+ affinity)</span></label>
+      <label class="chk"><input type="checkbox" id="rep"><span class="sw sw-rep"></span>Republican</label>
+    </div>
+    <div class="grp"><span class="lbl">Show</span>
+      <label class="chk"><input type="checkbox" id="elected" checked>Elected</label>
+      <label class="chk"><input type="checkbox" id="third" checked>Third-party</label>
+    </div>
+  </div>
+
+  <div class="scroll"><table id="grid"></table></div>
+
+  <div class="legend">
+    <div class="row"><b>Type:</b>
+      <span><i class="ti ti-building-bank" style="color:#111"></i>elected office</span>
+      <span><svg width="15" height="15" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#2b52a0"/><text x="8" y="11.4" font-size="9" font-family="sans-serif" font-weight="700" fill="#fff" text-anchor="middle">D</text></svg>party committee</span>
+      <span><svg width="15" height="15" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.7" fill="none" stroke="#2b52a0" stroke-width="1.6"/><text x="8" y="11.4" font-size="9" font-family="sans-serif" font-weight="700" fill="#2b52a0" text-anchor="middle">D</text></svg>party affinity</span>
+      <span><i class="ti ti-speakerphone" style="color:var(--third)"></i>advocacy</span>
+      <span><i class="ti ti-users-group" style="color:var(--third)"></i>general interest</span>
+      <span><i class="ti ti-news" style="color:var(--third)"></i>press</span>
+    </div>
+    <div class="row"><b>Broadcast:</b>
+      <span><i class="ti ti-world" style="color:var(--soft)"></i>website</span>
+      <span><i class="ti ti-mail" style="color:var(--soft)"></i>email</span>
+      <span><i class="ti ti-brand-facebook" style="color:#1877F2"></i>FB page</span>
+      <span><i class="ti ti-brand-x" style="color:#111"></i>X</span>
+      <span><i class="ti ti-brand-bluesky" style="color:#1185FE"></i>Bluesky</span>
+    </div>
+    <div class="row"><b style="color:var(--accent)">Community:</b>
+      <span><i class="ti ti-brand-facebook" style="color:#1877F2"></i>FB group</span>
+      <span><i class="ti ti-brand-slack" style="color:#4A154B"></i>Slack</span>
+      <span><i class="ti ti-brand-discord" style="color:#5865F2"></i>Discord</span>
+      <span style="color:var(--faint)">faint = absent</span>
+    </div>
+  </div>
+
+  <p class="foot"><b>Real and linked:</b> the nine county Democratic affinity groups, both Indivisible groups, The Examiner, and their channels (sourced from each site and the county affinity-group directory). <b>Officeholders:</b> Gashi (County District 4, Board Chair), Burdick (AD 93), Harckham (SD 40), Lawler (NY-17). <b>Illustrative pending audit:</b> town/county committee channels, committee chairs (blank where not published), and the general-interest example. How effective a space is — whether leaders take part — is a subjective measure for a later pass. Seats are real.</p>
+</div>
+
+<script>
+var E = [
+ {sect:"Local — New Castle", kind:"elected", name:"Town Supervisor & Town Board", party:null, leader:"", anchorText:"Town of New Castle (the seat)",
+  b:{web:true,mail:true}, c:{}, note:"The office you're represented by at town level."},
+ {sect:"Local — New Castle", kind:"committee", name:"New Castle Democratic Committee", party:"democratic", leader:"", anchorText:"Town of New Castle \u00b7 NY Democratic Party",
+  b:{web:true,fb:true,mail:true}, c:{}, note:"Clubhouse \u2014 meeting-based. Broadcast only."},
+ {sect:"Local — New Castle", kind:"committee", name:"New Castle Republican Committee", party:"republican", leader:"", anchorText:"Town of New Castle \u00b7 NY Republican Party",
+  b:{fb:true}, c:{}, note:"Clubhouse \u2014 meeting-based."},
+
+ {sect:"County — Westchester (committees)", kind:"elected", name:"County Legislator, District 4", party:null, leader:"Vedat Gashi (D)", anchorText:"County Legislative District 4 (the seat) \u00b7 Board Chair",
+  b:{web:true,mail:true}, c:{}, note:""},
+ {sect:"County — Westchester (committees)", kind:"committee", name:"Westchester County Democratic Committee", party:"democratic", leader:"", anchorText:"Westchester County \u00b7 NY Democratic Party",
+  b:{web:true,fb:true,x:true,mail:true}, c:{}, note:""},
+ {sect:"County — Westchester (committees)", kind:"committee", name:"Westchester County Republican Committee", party:"republican", leader:"", anchorText:"Westchester County \u00b7 NY Republican Party",
+  b:{web:true,fb:true,x:true}, c:{}, note:""},
+
+ {sect:"County — Westchester Democratic affinity groups", kind:"affinity", name:"Westchester Young Democrats", party:"democratic", leader:"", anchorText:"Democratic Party + affinity (youth). No seat.",
+  b:{web:"https://www.westchesteryoungdemocrats.org/",mail:"mailto:contact@westchesteryoungdems.org"}, c:{}, note:""},
+ {sect:"County — Westchester Democratic affinity groups", kind:"affinity", name:"Black Democrats of Westchester", party:"democratic", leader:"Terry Clements (Chair)", anchorText:"Democratic Party + affinity. No seat.",
+  b:{web:"https://www.theblackdems.com/",mail:"mailto:kickofftd@aol.com"}, c:{}, note:""},
+ {sect:"County — Westchester Democratic affinity groups", kind:"affinity", name:"Hispanic Democrats of Westchester", party:"democratic", leader:"R. Bikkal & X. Francella (Co-Chairs)", anchorText:"Democratic Party + affinity. No seat.",
+  b:{fb:"https://www.facebook.com/hispdems",mail:"mailto:bikkal@sblawyers.com"}, c:{}, note:""},
+ {sect:"County — Westchester Democratic affinity groups", kind:"affinity", name:"Hudson Valley Stonewall Democrats", party:"democratic", leader:"", anchorText:"Democratic Party + affinity (LGBTQ). No seat.",
+  b:{web:"https://hvstonewalldems.com/",mail:"mailto:hvstonewalldems@gmail.com",fb:"https://facebook.com/HVStonewallDems",x:"https://twitter.com/HVStonewallDems"}, c:{}, note:""},
+ {sect:"County — Westchester Democratic affinity groups", kind:"affinity", name:"Westchester Asian American Democrats", party:"democratic", leader:"", anchorText:"Democratic Party + affinity. No seat.",
+  b:{web:"https://www.waademocrats.org/",mail:"mailto:WestchesterAsianAmericanDems@gmail.com"}, c:{}, note:""},
+ {sect:"County — Westchester Democratic affinity groups", kind:"affinity", name:"Westchester Black Women\u2019s Political Caucus", party:"democratic", leader:"", anchorText:"Democratic Party + affinity. No seat.",
+  b:{web:"https://www.wbwpc.org/",mail:"mailto:info@wbwpc.org"}, c:{}, note:""},
+ {sect:"County — Westchester Democratic affinity groups", kind:"affinity", name:"Westchester Indians for Democrats", party:"democratic", leader:"", anchorText:"Democratic Party + affinity. No seat.",
+  b:{fb:"https://www.facebook.com/WIDemocrats/"}, c:{}, note:""},
+ {sect:"County — Westchester Democratic affinity groups", kind:"affinity", name:"Women Democrats of Westchester", party:"democratic", leader:"", anchorText:"Democratic Party + affinity. No seat.",
+  b:{web:"https://demwow.org/",mail:"mailto:chair@demwow.org"}, c:{}, note:"Meets third Thursday monthly."},
+ {sect:"County — Westchester Democratic affinity groups", kind:"affinity", name:"Westchester Jewish Democrats", party:"democratic", leader:"", anchorText:"Democratic Party + affinity. No seat.",
+  b:{}, c:{}, note:"Known to exist \u2014 but absent from the one public directory. Channels undiscoverable."},
+
+ {sect:"State", kind:"elected", name:"Assembly Member, AD 93", party:null, leader:"Chris Burdick (D)", anchorText:"Assembly District 93 (the seat)",
+  b:{web:true,mail:true,x:true}, c:{}, note:""},
+ {sect:"State", kind:"elected", name:"State Senator, SD 40", party:null, leader:"Pete Harckham (D)", anchorText:"Senate District 40 (the seat)",
+  b:{web:true,mail:true,x:true}, c:{}, note:""},
+ {sect:"State", kind:"elected", name:"U.S. Representative, NY-17", party:null, leader:"Mike Lawler (R)", anchorText:"Congressional District 17 (the seat)",
+  b:{web:true,mail:true,x:true,fb:true}, c:{}, note:""},
+ {sect:"State", kind:"committee", name:"State Committee Members, AD 93", party:"democratic", leader:"", anchorText:"Assembly District 93 \u00b7 NY Democratic Party",
+  b:{}, c:{}, note:"Elected party seat \u2014 essentially undiscoverable."},
+
+ {sect:"Third-party groups", kind:"third", subtype:"advocacy", name:"Northern Westchester Indivisible", party:null, leader:"", anchorText:"Informal; loosely NY-17. No seat, membership, or party.",
+  b:{web:"https://www.nwindivisible.org/",mail:"mailto:ny18indivisible@gmail.com",fb:"https://www.facebook.com/NWIndivisible/",x:"https://x.com/NWIndivisible"},
+  c:{fbg:"https://www.facebook.com/2070069356615891/"}, note:"Its Facebook link goes to a group, not a page \u2014 the one real community channel in this index."},
+ {sect:"Third-party groups", kind:"third", subtype:"advocacy", name:"Indivisible Westchester", party:null, leader:"", anchorText:"County-wide; not a seat, membership, or party.",
+  b:{web:"https://www.indivisiblewestchester.org/",mail:"mailto:communications@indivisiblewestchester.org",fb:"https://www.facebook.com/IndivisibleWestchester/"}, c:{}, note:""},
+ {sect:"Third-party groups", kind:"third", subtype:"press", name:"The Examiner", party:null, leader:"", anchorText:"Local newspaper covering New Castle. Not a membership.",
+  b:{web:"https://www.theexaminernews.com/",fb:true,x:true}, c:{}, note:"Press \u2014 broadcast by design."},
+ {sect:"Third-party groups", kind:"third", subtype:"general", name:"Local community group (Facebook)", party:null, leader:"", anchorText:"General-interest neighborhood group. Tied to no office.",
+  b:{}, c:{fbg:true}, note:"General interest \u2014 two-way, but civic in name only. (illustrative)"}
+];
+
+var SECTS = ["Local — New Castle","County — Westchester (committees)","County — Westchester Democratic affinity groups","State","Third-party groups"];
+var BCAST = [["web","ti-world","website","#5a686e"],["mail","ti-mail","email","#5a686e"],["fb","ti-brand-facebook","Facebook page","#1877F2"],["x","ti-brand-x","X","#111111"],["bsky","ti-brand-bluesky","Bluesky","#1185FE"]];
+var COMM = [["fbg","ti-brand-facebook","Facebook group","#1877F2"],["slack","ti-brand-slack","Slack","#4A154B"],["discord","ti-brand-discord","Discord","#5865F2"]];
+
+function glyphSet(map, defs){
+  return '<div class="glyphs">'+defs.map(function(d){
+    var key=d[0],icon=d[1],label=d[2],color=d[3],val=map[key];
+    if(!val) return '<i class="ti '+icon+'" title="no '+label+'"></i>';
+    var ic='<i class="ti '+icon+'" style="color:'+color+'" title="'+label+'"></i>';
+    if(typeof val==="string") return '<a href="'+val+'" target="_blank" rel="noopener" title="'+label+'">'+ic+'</a>';
+    return ic;
+  }).join("")+'</div>';
+}
+
+function disc(color,letter,filled){
+  if(filled) return '<svg width="17" height="17" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="'+color+'"/><text x="8" y="11.4" font-size="9" font-family="sans-serif" font-weight="700" fill="#fff" text-anchor="middle">'+letter+'</text></svg>';
+  return '<svg width="17" height="17" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.7" fill="none" stroke="'+color+'" stroke-width="1.6"/><text x="8" y="11.4" font-size="9" font-family="sans-serif" font-weight="700" fill="'+color+'" text-anchor="middle">'+letter+'</text></svg>';
+}
+function typeMark(e){
+  var mk,label;
+  if(e.kind==="elected"){ mk='<i class="ti ti-building-bank" style="color:#111"></i>'; label="Elected"; }
+  else if(e.kind==="committee"){ var col=e.party==="democratic"?"#2b52a0":"#b23b34"; var L=e.party==="democratic"?"D":"R"; mk=disc(col,L,true); label=(e.party==="democratic"?"Dem":"GOP")+" committee"; }
+  else if(e.kind==="affinity"){ mk=disc("#2b52a0","D",false); label="Dem affinity"; }
+  else { var m={advocacy:["ti-speakerphone","Advocacy"],general:["ti-users-group","General"],press:["ti-news","Press"]}[e.subtype]||["ti-speakerphone","Advocacy"];
+         mk='<i class="ti '+m[0]+'" style="color:var(--third)"></i>'; label=m[1]; }
+  return '<div class="typemark" title="'+e.anchorText+'">'+mk+'<span class="tlabel">'+label+'</span></div>';
+}
+
+function row(e){
+  var leader=e.leader?e.leader:'<span class="none">\u2014</span>';
+  return '<tr class="ent">'+
+    '<td><div class="nm">'+e.name+'</div></td>'+
+    '<td>'+typeMark(e)+'</td>'+
+    '<td class="leader">'+leader+'</td>'+
+    '<td>'+glyphSet(e.b,BCAST)+'</td>'+
+    '<td class="comm-cell">'+glyphSet(e.c,COMM)+'</td>'+
+  '</tr>';
+}
+
+function placeKey(){
+  var v=(document.getElementById("place").value||"").toLowerCase().replace(/,\s*ny$/,"").trim();
+  return v;
+}
+function render(){
+  var pk=placeKey(), note=document.getElementById("place-note");
+  if(pk && pk!=="new castle"){
+    var name=document.getElementById("place").value.replace(/,\s*ny$/i,"").trim();
+    document.getElementById("grid").innerHTML='<tbody><tr><td class="empty"><b>'+name+'</b> isn\u2019t in the index yet. New Castle is the populated sample \u2014 select it to see a full stack.</td></tr></tbody>';
+    note.textContent="not yet populated";
+    return;
+  }
+  note.textContent="";
+  var dem=document.getElementById("dem").checked, rep=document.getElementById("rep").checked,
+      showEl=document.getElementById("elected").checked, showTh=document.getElementById("third").checked;
+  var head='<thead>'+
+    '<tr class="h2"><th class="l"></th><th class="l"></th><th class="l"></th>'+
+      '<th class="bcast" colspan="5">Broadcast \u2014 one-way</th>'+
+      '<th class="comm">Community \u2014 two-way</th></tr>'+
+    '<tr class="h1r"><th class="l">Body / group</th><th class="l">Type</th><th class="l">Leader</th>'+
+      '<th>website · email · FB page · X · Bluesky</th><th class="comm">FB group · Slack · Discord</th></tr>'+
+    '</thead>';
+  var body="<tbody>";
+  SECTS.forEach(function(s){
+    var items=E.filter(function(e){
+      if(e.sect!==s) return false;
+      if(e.kind==="elected") return showEl;
+      if(e.kind==="committee") return (e.party==="democratic"&&dem)||(e.party==="republican"&&rep);
+      if(e.kind==="affinity") return dem;
+      return showTh;
+    });
+    if(!items.length) return;
+    body+='<tr class="band"><td colspan="5"><span class="t">'+s+'</span><span class="n">'+items.length+'</span></td></tr>';
+    body+=items.map(row).join("");
+  });
+  body+="</tbody>";
+  document.getElementById("grid").innerHTML=head+body;
+}
+["dem","rep","elected","third"].forEach(function(id){document.getElementById(id).addEventListener("change",render);});
+document.getElementById("place").addEventListener("change",render);
+document.getElementById("place").addEventListener("input",function(){ if(this.value.indexOf(",")>-1||this.value==="") render(); });
+render();
+</script>
+</body>
+</html>

@@ -6,6 +6,10 @@ dist/
 logs/
 tmp/
 local/
-ny-transparency/.next
-ny-transparency/next-env.d.ts
+reports/ny-transparency/.next
+reports/ny-transparency/next-env.d.ts
 data/ny-transparency/
+infra/pgdata/
+data/govdex/
+apps/web/.next
+apps/web/next-env.d.ts

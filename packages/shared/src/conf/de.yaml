@@ -1,0 +1,148 @@
+# Delaware locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in DE's own
+# vocabulary and structure; notes below cover only what's DE-specific.
+#
+# `educational_region`, `scholastic_athletic_region`, and `judicial_region`
+# are intentionally absent: no regional education service agency was found
+# distinct from DE's 3 full vo-tech school districts; DIAA has no confirmed
+# geographic sub-regions; and DE's trial courts sit in the same 3 counties
+# 1:1 rather than a separate multi-county grouping.
+
+profile:
+  code: US-DE
+  name: Delaware
+  config:
+    school_districts: 19 # 16 regular districts (sub-county) + 3 county-wide vo-tech overlay districts
+
+concepts:
+  state:
+    local_name: Delaware
+    has_active_government: true
+    default_body_name: General Assembly
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Wilmington, Dover, Newark]
+
+  # New Castle and Sussex call their governing body "County Council"; Kent
+  # uses the historical name "Levy Court" for the same role
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: County Council
+    executive_title: County Executive
+    executive_required: false
+    # only New Castle County has an elected County Executive; Kent and
+    # Sussex are run by their Levy Court/Council itself
+    subdivisions: Cities, Towns, Villages
+    legislative_committees: true
+    committees_label: Committees
+
+  # DE's 57 municipalities (10 cities, 44 towns, 3 villages) are each
+  # individually chartered by the General Assembly — no statewide
+  # population formula distinguishes the three, so governance is charter-
+  # specific rather than a fixed fact per type
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: [strong-mayor, council-manager]
+    governance_exceptions:
+      strong-mayor: [Wilmington]
+    subdivisions: false
+
+  town:
+    local_name: Town
+    has_active_government: true
+    default_body_name: Town Council
+    executive_title: Mayor
+    executive_required: false
+    subdivisions: false
+
+  village:
+    local_name: Village
+    has_active_government: true
+    default_body_name: Village Council
+    executive_required: false
+    subdivisions: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Education
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://enterprise.firstmap.delaware.gov/arcgis/rest/services/Boundaries/DE_Boundaries/MapServer/4
+    provider: Delaware FirstMap, layer "State and County Boundaries"
+    type: ArcGIS REST MapServer
+    note: verified the 3 counties (New Castle, Kent, Sussex) — raw feature
+      count is 6 because some counties have a separate mainland+island-
+      fragment polygon (e.g. New Castle's "Pea Patch" island). The commonly-
+      cited host firstmap.gis.delaware.gov now 404s/redirects — use
+      enterprise.firstmap.delaware.gov instead.
+
+  municipalities:
+    url: https://enterprise.firstmap.delaware.gov/arcgis/rest/services/Boundaries/DE_Boundaries/MapServer/3
+    provider: same FirstMap host, layer "Municipalities"
+    type: ArcGIS REST MapServer
+    field_mapping:
+      NAME: name
+      GEOID10: jurisdiction_identifiers (scheme "census_geoid")
+      website: website
+    note: verified 57 municipalities, exact match. Type (city/town/village)
+      is not distinguished in the attribute table — would need to be joined
+      from DE's municipal charter list.
+
+  school_districts:
+    url: https://enterprise.firstmap.delaware.gov/arcgis/rest/services/Society/DE_Schools/MapServer/3
+    provider: same FirstMap host, maintained by DE Dept of Education, layer
+      "DOE School Districts" (the 16 regular sub-county districts)
+    type: ArcGIS REST MapServer
+    note: verified 17 records — one more than the expected 16, likely a
+      statewide/charter placeholder row; spot-check before ingesting.
+
+  educational_region:
+    url: https://enterprise.firstmap.delaware.gov/arcgis/rest/services/Society/DE_Schools/MapServer/2
+    provider: same host, layer "DOE VoTech School Districts"
+    note: verified 3 records, exact match to DE's 3 county-wide vo-tech
+      districts. These are themselves full LEAs (taxing, degree-granting),
+      not an overlay service agency — no true BOCES-equivalent exists.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS from the counties source above.

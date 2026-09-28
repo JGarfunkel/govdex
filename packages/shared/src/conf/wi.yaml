@@ -1,0 +1,162 @@
+# Wisconsin locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in WI's own
+# vocabulary and structure; notes below cover only what's WI-specific.
+#
+# WI statutorily recognizes City, Village, and Town as three genuinely
+# distinct general-purpose municipal categories — all three map directly
+# onto the portable codes, unlike most other states in this set.
+
+profile:
+  code: US-WI
+  name: Wisconsin
+  config:
+    judicial_regions: 69 # circuits (66 single-county + 3 two-county), grouped into 9 administrative districts
+    athletic_sections: 7 # WIAA geographic sections
+    school_districts: 12 # Cooperative Educational Service Agencies (CESAs)
+
+concepts:
+  state:
+    local_name: Wisconsin
+    has_active_government: true
+    default_body_name: Legislature
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Milwaukee, Madison, Green Bay, Kenosha, Racine, Appleton]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of Supervisors
+    executive_title: County Executive
+    executive_required: false
+    # Milwaukee County is the confirmed example; several other larger
+    # counties are commonly cited as having adopted the option too
+    subdivisions: Cities, Villages, Towns
+    legislative_committees: true
+    committees_label: Committees
+
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: Common Council
+    executive_title: Mayor
+    # Milwaukee and Madison are both confirmed strong mayor-council
+    governance: strong-mayor
+    subdivisions: false
+
+  # a distinct legal category from `city`, led by an elected Village
+  # President rather than a Mayor
+  village:
+    local_name: Village
+    has_active_government: true
+    default_body_name: Village Board
+    executive_title: Village President
+    governance: council-manager
+    subdivisions: false
+
+  # WI's own general-purpose rural civil division is literally called
+  # "Town" (not "township") — 1,266 active, covering all area outside
+  # city/village boundaries
+  town:
+    local_name: Town
+    has_active_government: true
+    default_body_name: Town Board
+    subdivisions: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: School Board
+
+  educational_region:
+    local_name: Cooperative Educational Service Agency
+    local_abbrev: CESA
+    has_active_government: true
+    default_body_name: CESA Board
+
+  scholastic_athletic_region:
+    local_name: Section
+    parent_org_name: WIAA
+    has_active_government: false
+
+  # WI's lower chamber is the Assembly, not the House
+  state_house_district:
+    local_name: Assembly District
+    local_abbrev: AD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Circuit
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://datcpgis.wi.gov/arcgis/rest/services/Base/LinesPointsExternal3857/MapServer/9
+    provider: Wisconsin DATCP
+    type: ArcGIS REST MapServer
+    note: verified 72 counties, exact match.
+
+  municipalities:
+    url: https://services1.arcgis.com/FDsAtKBk8Hy4cAH0/arcgis/rest/services/WI_Cities_Towns_Villages_July/FeatureServer/0
+    provider: Wisconsin Legislative Technology Services Bureau (LTSB)
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      MCD_NAME: name
+      CTV: concept_id — genuinely distinguishes City/Town/Village
+      CNTY_NAME / CNTY_FIPS: parent county
+      GEOID: jurisdiction_identifiers (scheme "census_geoid")
+    note: verified 1,912 records — exactly the shape needed (type + name +
+      county all present in one source).
+
+  school_districts:
+    url: https://services8.arcgis.com/o4NJgD3NfeHnWy06/arcgis/rest/services/Wisconsin_School_Districts/FeatureServer/9
+    provider: Wisconsin DPI (Dept of Public Instruction)
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      DISTRICT: name
+      SDID / LEAID: jurisdiction_identifiers (scheme "wi_sdid" / "leaid")
+      TYPE: concept_id (Elementary/Secondary/Unified)
+      CESA: parent Cooperative Educational Service Agency — see educational_region below
+    note: verified 421 districts, exact match.
+
+  # Wisconsin's BOCES-equivalent — same school-districts service carries the
+  # district-to-CESA join directly; the CESA directory itself is static HTML
+  educational_region:
+    url: https://services8.arcgis.com/o4NJgD3NfeHnWy06/arcgis/rest/services/Wisconsin_School_Districts/FeatureServer/9
+    field_mapping:
+      CESA: identifier (region number 1-12)
+    note: 12 CESAs confirmed via dpi.wi.gov/about-dpi/cesa (a directory page,
+      not an API, listing name/city/website per CESA — e.g. cesa1.k12.wi.us).
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS from the counties source above.

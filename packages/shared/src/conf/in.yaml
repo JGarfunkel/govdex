@@ -1,0 +1,162 @@
+# Indiana locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in IN's own
+# vocabulary and structure; notes below cover only what's IN-specific.
+#
+# IN's "City" and "Town" are both real, distinct legal categories (split by
+# population, not governance form), matching the portable codes directly —
+# unlike most other states in this set. `village` is repurposed for IN's
+# active Township government (no incorporated village category exists),
+# same technique used for PA/OH/MI/IL's borough/township mappings.
+
+profile:
+  code: US-IN
+  name: Indiana
+  config:
+    judicial_regions: 90 # circuit courts, covering 92 counties (Pike and Dubois share one circuit)
+    school_districts: 9 # Educational Service Centers (ESCs)
+
+concepts:
+  state:
+    local_name: Indiana
+    has_active_government: true
+    default_body_name: General Assembly
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Indianapolis, Fort Wayne, Evansville, South Bend, Bloomington]
+
+  # power is split between an elected County Council (legislative/fiscal)
+  # and a 3-member Board of Commissioners (executive branch, county-wide
+  # elected) — no single elected chief executive exists, so executive_title
+  # is omitted; default_body_name below models the Council as the county's
+  # primary legislative body
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: County Council
+    subdivisions: Cities, Towns, Townships
+    legislative_committees: true
+    committees_label: Committees
+
+  # structurally mayor-council statewide, including third-class cities
+  # (5-7 member council + elected clerk-treasurer); Indianapolis is the
+  # consolidated "Unigov" City-County government
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: strong-mayor
+    subdivisions: false
+
+  # a real, distinct, weaker municipal class from `city` — no confirmed
+  # separately elected executive
+  town:
+    local_name: Town
+    has_active_government: true
+    default_body_name: Town Council
+    subdivisions: false
+
+  # active general-purpose civil governments, headed by an elected Township
+  # Trustee (day-to-day administrator; historically handles poor relief/
+  # general assistance) alongside a separate elected Township Board
+  village:
+    local_name: Township
+    has_active_government: true
+    default_body_name: Township Board
+    executive_title: Township Trustee
+    executive_required: true
+    subdivisions: false
+
+  school_district:
+    local_name: School Corporation
+    has_active_government: true
+    default_body_name: Board of School Trustees
+
+  educational_region:
+    local_name: Educational Service Center
+    local_abbrev: ESC
+    has_active_government: true
+    default_body_name: ESC Board
+
+  scholastic_athletic_region:
+    local_name: Class
+    parent_org_name: IHSAA
+    has_active_government: false
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Circuit
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://gisdata.in.gov/server/rest/services/Hosted/County_Boundaries_of_Indiana_Current/FeatureServer/0
+    provider: Indiana Geographic Information Office (IndianaMap), compiled from 2021 county submissions
+    type: ArcGIS REST FeatureServer
+    note: URL and item existence confirmed via the ArcGIS Online catalog,
+      but a live query returned HTTP 503 — Indiana's ArcGIS Enterprise
+      Portal backend (gisdata.in.gov/portal/sharing/rest) was down
+      state-wide at check time (confirmed via an unrelated DNR folder
+      failing the same way), not a bad/guessed URL. Retry the query
+      endpoint directly.
+
+  municipalities:
+    url: https://gisdata.in.gov/server/rest/services/Hosted/Incorporated_Areas_of_Indiana_Current/FeatureServer/0
+    provider: same IndianaMap host
+    type: ArcGIS REST FeatureServer
+    note: same portal outage as counties — item exists, query not verified this session.
+
+  township:
+    url: https://gisdata.in.gov/server/rest/services/Hosted/Township_Boundaries_of_Indiana/FeatureServer/0
+    provider: same IndianaMap host, "Civil Township Boundaries 2021" — this
+      is IN's `village` concept below (repurposed as Township)
+    type: ArcGIS REST FeatureServer
+    note: same portal outage — item exists, query not verified this session.
+
+  school_districts:
+    status: no IndianaMap/IGIO-maintained corporation-boundary layer found
+    fallback: https://gisdata.in.gov/server/rest/services/Hosted/Census_TIGER_Unified_School_Districts_of_Indiana/FeatureServer/0
+      (Census-TIGER-derived, same portal outage — not query-verified this session)
+    note: for authoritative names/IDs without geometry, IDOE's directory is
+      confirmed live at in.gov/doe/files/2025-2026-school-directory-2026-03-23.xlsx
+      (an Excel download of the school/corporation directory, no API).
+
+  educational_region:
+    status: no API — directory only
+    note: 9 Educational Service Centers confirmed live via
+      escindiana.org/education-service-centers/ (Southern Indiana, Wilson
+      EC, West Central EC, East Central ESC, Wabash Valley EC, Northwest
+      Indiana EC, Northern Indiana EC, Region 8 ESC, Central Indiana ESC) —
+      HTML directory only.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population.

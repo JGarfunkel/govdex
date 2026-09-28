@@ -1,0 +1,161 @@
+# Illinois locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in IL's own
+# vocabulary and structure; notes below cover only what's IL-specific.
+#
+# `scholastic_athletic_region` is intentionally absent: IHSA sorts schools
+# into enrollment classes (typically 1A-4A, varying by sport) rather than
+# fixed geographic sections, so there's no stable regional jurisdiction to
+# seed the way NY's Sections or CA's CIF sections work.
+
+profile:
+  code: US-IL
+  name: Illinois
+  config:
+    judicial_regions: 24 # judicial circuits (sources vary 24-25; Cook County is its own circuit)
+    school_districts: 35 # Regional Offices of Education (ROEs); Cook County suburbs are additionally split into 3 Intermediate Service Centers
+
+concepts:
+  state:
+    local_name: Illinois
+    has_active_government: true
+    default_body_name: General Assembly
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Chicago, Aurora, Rockford, Joliet, Naperville, Springfield, Peoria]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: County Board
+    executive_required: false
+    # an elected County Executive is possible by referendum in home-rule
+    # counties but no current example was confirmed beyond Cook County's
+    # Board President, whose role is closer to a legislative presiding
+    # officer than a separate executive
+    subdivisions: Cities, Villages, Townships
+    legislative_committees: true
+    committees_label: Committees
+
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: [strong-mayor, council-manager]
+    subdivisions: false
+
+  # active in 85 of 102 counties (the other 17 use commission-form county
+  # government instead, with no townships); a Township Supervisor chairs the
+  # Township Board and serves as its chief administrative officer
+  town:
+    local_name: Township
+    has_active_government: true
+    default_body_name: Township Board
+    executive_title: Township Supervisor
+    subdivisions: false
+
+  # a distinct legal category from `city` (separate incorporation code/
+  # population threshold), led by an elected Village President rather than
+  # a Mayor
+  village:
+    local_name: Village
+    has_active_government: true
+    default_body_name: Village Board
+    executive_title: Village President
+    governance: council-manager
+    subdivisions: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Education
+
+  educational_region:
+    local_name: Regional Office of Education
+    local_abbrev: ROE
+    has_active_government: true
+    default_body_name: ROE
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial Circuit
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+  # Chicago's mayor is formally "weak" on paper but functions as a strong
+  # mayor in practice: chairs the council, holds veto power
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://data.isgs.illinois.edu/arcgis/rest/services/Reference/County_Boundaries/MapServer/0
+    provider: Illinois State Geological Survey (ISGS)
+    type: ArcGIS REST MapServer
+    note: confirmed queryable (JSON/GeoJSON, up to 2000 records/query) —
+      county name and FIPS fields present; a count wasn't independently
+      re-verified this session.
+
+  municipalities:
+    url: https://geoservices.epa.illinois.gov/arcgis/rest/services/Political/PoliticalBoundaries/MapServer/1
+    provider: Illinois EPA GeoServices, layer "Municipal Boundaries" (sourced
+      from the IL Dept of Revenue)
+    type: ArcGIS REST MapServer
+    field_mapping:
+      DIST_NAME: name
+      TYPE_: concept_id (city/village)
+      CODE10 / HOME13CODE: attributes.municipality_code
+      CTYPOP2010 / POP2010: attributes.population_estimate (dated — see population below)
+    note: verified 1,296 rows (IL has ~1,298 municipalities — close match).
+      Underlying boundary vintage is dated ~2012 in the metadata, so treat
+      as authoritative-but-not-annually-refreshed. No confirmed active-
+      township layer was located.
+
+  school_districts:
+    status: no live state-hosted GIS REST API confirmed
+    fallback: Census TIGER/Line School District shapefiles (elementary/
+      secondary/unified) — ISBE itself points to these as the authoritative
+      boundary source, supplying the underlying district roster to Census.
+    note: the University of Illinois's IECAM "Illinois School District
+      Finder" is an interactive ArcGIS-based web app, but no direct REST
+      query endpoint could be extracted from it.
+
+  educational_region:
+    status: no live GIS/API source confirmed
+    note: only ArcGIS "Web Mapping Application" viewer items were found for
+      ISBE Regions (not a raw feature service), plus isbe.net/roe and
+      illinoisreportcard.com/ListROEs.aspx as human-readable directories (35
+      ROEs + 3 Cook County ISCs).
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS from the counties source above.

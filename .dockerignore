@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.env
+*.local
+*.tsbuildinfo
+logs
+tmp
+local
+reports/ny-transparency/.next
+data/ny-transparency
+infra/pgdata
+data/govdex
+apps/web/.next
+.git

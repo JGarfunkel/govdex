@@ -4,7 +4,7 @@
 // lib/types.ts. Paste the output into a new sheet tab, then point
 // lib/csv-source.ts at that tab's gid.
 //
-// Run with: npx tsx ny-transparency/scripts/export-scoped-csv.ts [output-path]
+// Run with: npx tsx reports/ny-transparency/scripts/export-scoped-csv.ts [output-path]
 
 import { mkdirSync, writeFileSync } from "fs";
 import path from "path";

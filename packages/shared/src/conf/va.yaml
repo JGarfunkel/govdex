@@ -1,0 +1,143 @@
+# Virginia locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in VA's own
+# vocabulary and structure; notes below cover only what's VA-specific.
+#
+# VA is the one state in this set where `city` is genuinely NOT a
+# subdivision of `county`: all 38 Virginia cities are "independent cities" —
+# fully county-equivalent, direct children of the state, same level as a
+# county rather than nested inside one. `town` (188 of them) is the real
+# county subdivision, sitting inside a parent county like any other state's
+# town/city.
+
+profile:
+  code: US-VA
+  name: Virginia
+  config:
+    judicial_regions: 31 # judicial circuits
+    athletic_sections: 24 # VHSL regions (6 classifications x 4 regions each)
+
+concepts:
+  state:
+    local_name: Virginia
+    has_active_government: true
+    default_body_name: General Assembly
+    executive_title: Governor
+    subdivisions: Counties and Independent Cities
+    additional_subdivisions:
+      major_cities: [Virginia Beach, Norfolk, Chesapeake, Richmond, Newport News, Alexandria, Hampton, Roanoke, Charlottesville]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of Supervisors
+    executive_required: false
+    # run by an appointed County Administrator/Manager; not a separately
+    # elected office
+    subdivisions: Towns
+    legislative_committees: true
+    committees_label: Committees
+
+  # a direct, county-equivalent child of the state — not nested under any
+  # county (see file header note)
+  city:
+    local_name: Independent City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    # council-manager is the historical default among VA's independent
+    # cities; Richmond is the sole, confirmed exception (2004 charter change)
+    governance: [council-manager, strong-mayor]
+    governance_exceptions:
+      strong-mayor: [Richmond]
+    subdivisions: false
+
+  town:
+    local_name: Town
+    has_active_government: true
+    default_body_name: Town Council
+    executive_title: Mayor
+    executive_required: false
+    subdivisions: false
+
+  # called "school divisions" — generally one per county or independent
+  # city, with a few joint divisions (e.g. Williamsburg-James City County)
+  school_district:
+    local_name: School Division
+    has_active_government: true
+    default_body_name: School Board
+
+  scholastic_athletic_region:
+    local_name: Region
+    parent_org_name: VHSL
+    has_active_government: false
+
+  state_house_district:
+    local_name: House of Delegates District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial Circuit
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties_municipalities:
+    url: https://services.arcgis.com/p5v98VHDX9Atv3l7/arcgis/rest/services/VA_Jurisdictions/FeatureServer/0
+    provider: VGIN (Virginia Geographic Information Network) / VDOT
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      NAME (or NAMELSAD): name
+      JURISTYPE: concept_id — "CO"=county (95), "CI"=independent city (38), "TO"=town (191)
+      STCOFIPS: attributes.county_fips
+      GEOID: jurisdiction_identifiers (scheme "census_geoid")
+    note: verified live — JURISTYPE cleanly distinguishes independent cities
+      from towns nested in a county, matching this file's own city/town
+      split. Towns have no explicit parent-county field; derive from
+      STCOFIPS or a spatial join to the county polygons. The VGIN
+      Clearinghouse's own host (gismaps.vdem.virginia.gov) failed DNS
+      resolution when checked — use this ArcGIS Online-hosted mirror instead.
+
+  school_districts:
+    status: no live VDOE-native statewide API found
+    fallback: https://nces.ed.gov/opengis/rest/services/School_District_Boundaries/EDGE_SCHOOLDISTRICT_TL21_SY2021/MapServer
+      (federal NCES EDGE layer, filter STATEFP='51') — not independently
+      count-verified this session, flagged as needing confirmation rather
+      than asserted as fact
+    note: data.virginia.gov's "School Regions" dataset only covers Fairfax
+      County, not statewide.
+
+  educational_region:
+    status: none found — VA has no BOCES/ESD-equivalent regional education service agency
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the
+      county/independent-city FIPS already captured by the
+      counties_municipalities source above.

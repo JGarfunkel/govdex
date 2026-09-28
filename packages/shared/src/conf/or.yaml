@@ -1,0 +1,140 @@
+# Oregon locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in OR's own
+# vocabulary and structure; notes below cover only what's OR-specific.
+#
+# `athletic_sections` is omitted from config: OSAA's 6 classifications are
+# each split into their own number of districts, re-drawn every 4-year
+# classification cycle — there's no single fixed statewide district count.
+
+profile:
+  code: US-OR
+  name: Oregon
+  config:
+    villages_exist: false # ORS Ch. 221 recognizes only "city" — no separate town or village category
+    judicial_regions: 27 # judicial districts (most single-county, a few span 2+ counties)
+    school_districts: 19 # Education Service Districts (ESDs)
+
+concepts:
+  state:
+    local_name: Oregon
+    has_active_government: true
+    default_body_name: Legislative Assembly
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Portland, Salem, Eugene, Gresham, Bend]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of County Commissioners
+    executive_title: County Chair
+    executive_required: false
+    # only Multnomah County (Portland) elects a countywide Chair who also
+    # serves as chief executive; every other county's Board of Commissioners
+    # holds combined executive + legislative authority
+    subdivisions: Cities
+    legislative_committees: true
+    committees_label: Committees
+
+  # `town` and `village` are intentionally absent — Oregon has no legal
+  # category distinct from `city` (see config.villages_exist above)
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: council-manager
+    subdivisions: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: School Board
+
+  educational_region:
+    local_name: Education Service District
+    local_abbrev: ESD
+    has_active_government: true
+    default_body_name: ESD Board
+
+  scholastic_athletic_region:
+    local_name: Classification
+    parent_org_name: OSAA
+    has_active_government: false
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial District
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  # dominant statewide — mayor is largely ceremonial, presiding over the
+  # council rather than heading the executive branch
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://maps.prd.state.or.us/arcgis/rest/services/Admin_boundaries/Oregon_Counties/FeatureServer/0
+    provider: State of Oregon
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      NAME: name
+      COUNTY / COUNTY_ID: attributes.county_code
+    note: verified 36 distinct counties (37 raw features — Tillamook has a
+      split/non-contiguous polygon).
+
+  municipalities:
+    url: https://geohub.oregon.gov/datasets/oregon-geo::city-limits
+    provider: Oregon GEOHub / ODOT GIS Unit
+    type: ArcGIS/Esri Hub, geojson download
+    field_mapping:
+      CITYNAME: name
+      instCode: jurisdiction_identifiers (scheme "or_inst_code")
+      EFFECTV_DT: attributes.effective_date
+    note: verified 241 incorporated cities, exact match.
+
+  school_districts:
+    status: no confirmed ODE/GEOHub-native endpoint
+    fallback: Census TIGERweb (same service used elsewhere in this project),
+      filter STATE='41' — verified 188 unified school districts, somewhat
+      under the ~197 expected, likely excluding ESD-administered or
+      component districts.
+
+  educational_region:
+    status: no API — directory only
+    note: 19 Education Service Districts confirmed via the Oregon
+      Association of ESDs (oaesd.org/about/esds/) — Clackamas, Columbia
+      Gorge, Douglas, Grant County, Harney, High Desert, InterMountain,
+      Jefferson County, Lake County, Lane, Linn Benton Lincoln, Malheur,
+      Multnomah, North Central, NW Regional, Region 18-Wallowa, South Coast,
+      Southern Oregon, Willamette — a static 19-row reference table, not an API.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      code from the counties source above.

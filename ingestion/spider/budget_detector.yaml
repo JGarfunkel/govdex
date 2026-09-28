@@ -1,0 +1,25 @@
+# Matches anchor text or URL for a jurisdiction's budget page — see
+# budgetDetector.ts for how these are used. Promoted onto
+# jurisdictions.budget_url (the "budget" glyph), not tied to any one board.
+
+# Anchor text containing this (case-insensitive, whole word) counts as
+# naming the budget document.
+text_pattern: "\\bbudgets?\\b"
+
+# Anchor text that mentions "budget" but names a process/meeting/committee
+# page rather than the document itself — not something to promote onto
+# jurisdictions.budget_url. Merged at load time with detector_common.yaml's
+# shared reject list (Calendar, Meeting, Schedule); everything below is
+# budget-specific on top of that.
+reject:
+  - "Committee"
+  - "Commission"
+  - "Hearing"
+  - "Workshop"
+  - "Participatory"
+  - "Process"
+  - "Task Force"
+
+# Fallback when anchor text is generic ("Learn more", "View", a bare icon) —
+# the URL path itself names a budget section.
+url_pattern: "/budgets?(?:[/?#]|$)"

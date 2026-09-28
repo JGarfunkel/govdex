@@ -1,0 +1,153 @@
+# Florida locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in FL's own
+# vocabulary and structure; notes below cover only what's FL-specific.
+#
+# `educational_region` is intentionally absent: Florida has no statewide
+# network of regional educational service agencies analogous to NY's BOCES.
+
+profile:
+  code: US-FL
+  name: Florida
+  config:
+    villages_exist: true # a naming choice only — see the `city` concept note below
+    judicial_regions: 20 # Judicial Circuits
+    athletic_sections: 4 # FHSAA regions (each further split into districts)
+    school_districts: 67 # one per county, constitutionally capped at one per county
+
+concepts:
+  state:
+    local_name: Florida
+    has_active_government: true
+    default_body_name: State Legislature
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Jacksonville, Miami, Tampa, Orlando, St. Petersburg, Hialeah, Port St. Lucie, Tallahassee, Cape Coral, Fort Lauderdale]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of County Commissioners
+    executive_title: County Mayor
+    executive_required: false
+    # an independently elected County Mayor exists in only a handful of
+    # home-rule charter counties (Miami-Dade is the clearest example) —
+    # elsewhere an appointed County Administrator runs day-to-day operations
+    subdivisions: Municipalities
+    legislative_committees: true
+    committees_label: Committees
+
+  # `town` and `village` are intentionally absent — City/Town/Village are
+  # interchangeable naming choices in FL, not distinct legal tiers: the Town
+  # of Palm Beach and the Village of Key Biscayne have the same legal status
+  # as any "City". All fold under this one concept rather than NY's
+  # separate city/town/village.
+  city:
+    local_name: Municipality
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: [council-manager, strong-mayor]
+    subdivisions: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: School Board
+
+  scholastic_athletic_region:
+    local_name: Region
+    parent_org_name: FHSAA
+    has_active_government: false
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial Circuit
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  # used by roughly 70% of Florida municipalities
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+  # a separately elected mayor with real executive power distinct from the
+  # council — no specific FL cities confirmed for governance_exceptions yet
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://gis.fdot.gov/arcgis/rest/services/Admin_Boundaries/FeatureServer/5
+    provider: Florida Dept. of Transportation (FDOT) "Admin_Boundaries"
+      FeatureServer, layer "Detailed FL County Bndy" — built from Florida
+      Geographic Data Library (FGDL) source data, the de facto statewide GIS
+      clearinghouse (FLDOE itself has no GIS service of its own)
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      NAME: name
+      FIPS: attributes.county_fips
+      FGDLCODE: attributes.fgdl_code
+    note: verified 67 counties via returnCountOnly. No website or parent field
+      (counties are the top-level entity).
+
+  municipalities:
+    url: https://gis.fdot.gov/arcgis/rest/services/Admin_Boundaries/FeatureServer/7
+    provider: same FDOT FeatureServer, layer "Florida Cities Bndy" (Census-Places-derived schema)
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      GEOID: jurisdiction_identifiers (scheme "census_geoid")
+      NAME (or NAMELSAD): name
+      CLASSFP: filter key — "C1" = legally incorporated place; the unfiltered
+        layer also includes CDPs/unincorporated communities, so this filter is
+        required
+      POP: attributes.population (a stopgap ahead of a dedicated population pull)
+    note: verified 410 municipalities with CLASSFP='C1' (close to FL's ~412
+      figure). No website field, and no explicit parent-county field — some FL
+      municipalities straddle county lines, unlike NY's one-parent-county model.
+
+  school_districts:
+    url: https://nces.ed.gov/opengis/rest/services/School_District_Boundaries/EDGE_SCHOOLDISTRICT_TL21_SY2021/MapServer/0
+    provider: NCES (federal) EDGE School District Boundaries, built from Census
+      TIGER + state-submitted district data — NOT FLDOE; FLDOE publishes only
+      static PDFs (e.g. district-number-to-county lists), no live GIS/REST
+      service of its own, so the federal layer is used instead
+    type: ArcGIS REST MapServer, filtered to STATEFP='12'
+    field_mapping:
+      GEOID: jurisdiction_identifiers (scheme "nces_geoid") — 2-digit state
+        FIPS + 5-digit district LEA code
+      NAME: name
+      UNSDLEA (or ELSDLEA / SCSDLEA): attributes.lea_code
+    note: verified exactly 67 districts (one per county, as expected for FL's
+      constitutionally-capped model). This TL21_SY2021 vintage was the one
+      confirmed live; newer vintages likely exist under the same
+      nces.ed.gov/opengis/rest/services/School_District_Boundaries/ path
+      pattern but weren't individually re-verified.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS already captured by the counties source above.

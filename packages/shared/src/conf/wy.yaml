@@ -1,0 +1,137 @@
+# Wyoming locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in WY's own
+# vocabulary and structure; notes below cover only what's WY-specific.
+#
+# `educational_region` is intentionally absent: no BOCES-equivalent regional
+# agency was identified for Wyoming.
+
+profile:
+  code: US-WY
+  name: Wyoming
+  config:
+    judicial_regions: 9 # judicial districts (general jurisdiction); a separate county-level Circuit Court layer sits below this
+    athletic_sections: 4 # WHSAA classes (4A/3A/2A/1A; fewer classes for some sports)
+
+concepts:
+  state:
+    local_name: Wyoming
+    has_active_government: true
+    default_body_name: Legislature
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Cheyenne, Casper, Laramie]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of County Commissioners
+    subdivisions: Cities, Towns
+    legislative_committees: true
+    committees_label: Committees
+
+  # a real, distinct legal category from `town` (e.g. "first class City"
+  # thresholds under state statute)
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: strong-mayor
+    subdivisions: false
+
+  # smaller municipalities; statutory baseline of one mayor and four
+  # councilors
+  town:
+    local_name: Town
+    has_active_government: true
+    default_body_name: Town Council
+    executive_title: Mayor
+    executive_required: false
+    legislative_committees: false
+
+  # county-wide unified districts, numbered per county (e.g. "Laramie
+  # County School District #1")
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Education
+
+  scholastic_athletic_region:
+    local_name: Class
+    parent_org_name: WHSAA
+    has_active_government: false
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Judicial District
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://services.wygisc.org/hostgis/rest/services/GeoHub/DORCounties/MapServer/0
+    provider: Wyoming GeoHub (WYGISC/University of Wyoming), sourced from WY Dept of Revenue
+    type: ArcGIS REST MapServer
+    field_mapping:
+      COUNTYNAME: name
+    note: metadata confirmed live; count queries intermittently returned 400
+      (a server quirk, not evidence the service is dead). No FIPS field present.
+
+  municipalities:
+    url: https://services.wygisc.org/hostgis/rest/services/GeoHub/DORMunicipalities2019G/MapServer/0
+    provider: same WY DOR source
+    type: ArcGIS REST MapServer
+    field_mapping:
+      entityname: name
+      typename: concept_id (City/Town)
+      statute: attributes.statute_reference
+    note: verified 100 records (close to WY's ~99 incorporated cities/towns).
+
+  school_districts:
+    url: https://services.wygisc.org/hostgis/rest/services/GeoHub/CensusUnifiedSchoolDistricts/MapServer/0
+    provider: same GeoHub host, "Census Unified School Districts" (2013-14 school year vintage)
+    type: ArcGIS REST MapServer
+    note: confirmed live via metadata; count queries were flaky (same server
+      quirk as counties). Census TIGER unified-school-district shapefiles
+      for WY (catalog.data.gov) are a stable fallback if needed.
+
+  educational_region:
+    status: confirmed to exist but no consolidated API/roster found
+    note: Wyoming DOES have BOCES/BOCHES (Boards of Cooperative Educational/
+      Higher Educational Services), administered by the WY Dept of
+      Education — live pages confirmed at edu.wyoming.gov/boce-boche/ for
+      named entities (Region V BOCES, Northeast Wyoming BOCES, Central
+      Wyoming BOCL, BHCSD#2 BOCES, NBHCSD#2 BOCES, Northwest Wyoming BOCES),
+      but no single JSON/geo endpoint enumerating all of them.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS from the counties source above.

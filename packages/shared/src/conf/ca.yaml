@@ -1,0 +1,159 @@
+# California locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in CA's own
+# vocabulary and structure; notes below cover only what's CA-specific.
+
+profile:
+  code: US-CA
+  name: California
+  config:
+    villages_exist: false # "town" is legally just an alternate name for a city (Govt. Code §§34500-34504); no separate village category exists either
+    judicial_regions: 6 # Courts of Appeal districts (trial courts are one Superior Court per county, not grouped)
+    athletic_sections: 10 # CIF sections
+    school_districts: 58 # County Offices of Education, one per county
+
+concepts:
+  state:
+    local_name: California
+    has_active_government: true
+    default_body_name: State Legislature
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Los Angeles, San Diego, San Jose, San Francisco, Fresno, Sacramento, Oakland, Long Beach, Bakersfield, Anaheim, Riverside, Stockton]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of Supervisors
+    executive_required: false
+    # no executive_title: unlike NY, an elected county executive is essentially
+    # nonexistent in CA — counties are run by an appointed CAO answering to
+    # the Board, even in charter counties
+    subdivisions: Cities
+    legislative_committees: true
+    committees_label: Committees
+
+  # `town` and `village` are intentionally absent — CA has no legal category
+  # distinct from `city` (see config.villages_exist above)
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: [council-manager, strong-mayor]
+    governance_exceptions:
+      strong-mayor: [Los Angeles, San Francisco, San Diego, Oakland, Fresno]
+    subdivisions: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Education
+
+  educational_region:
+    local_name: County Office of Education
+    local_abbrev: COE
+    has_active_government: true
+    default_body_name: County Board of Education
+
+  scholastic_athletic_region:
+    local_name: Section
+    parent_org_name: CIF
+    has_active_government: false
+
+  state_house_district:
+    local_name: Assembly District
+    local_abbrev: AD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  judicial_region:
+    local_name: Court of Appeal District
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  # ~97% of CA's 482 cities use this form
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+  # only a handful of major cities (LA, SF, San Diego, Oakland, Fresno)
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://services.gis.ca.gov/arcgis/rest/services/Boundaries/CA_Counties/MapServer/0
+    provider: CA Department of Finance, via the CA State Geoportal ("California County Boundaries and Identifiers")
+    type: ArcGIS REST FeatureLayer (MapServer) — query with /query?where=1=1&outFields=*&f=json
+    field_mapping:
+      County: name
+      FIPS: attributes.county_fips
+      Population: a 2014 DOF estimate — see `population` below for a fresher source
+    note: verified 58 counties via returnCountOnly. No website field on this layer.
+
+  municipalities:
+    url: https://services3.arcgis.com/uknczv4rpevve42E/arcgis/rest/services/California_Cities_and_Identifiers_Blue_Version_view/FeatureServer/2
+    provider: CA State Geoportal, "California City Boundaries and Identifiers"
+      (source data from the CA Dept of Tax and Fee Administration, joined to
+      Census/GNIS identifiers)
+    type: ArcGIS FeatureServer
+    field_mapping:
+      CDTFA_COPRI: jurisdiction_identifiers (scheme "cdtfa")
+      CDTFA_CITY: name
+      CDTFA_COUNTY: parent county
+      GNIS_ID: jurisdiction_identifiers (scheme "gnis")
+      CENSUS_GEOID: jurisdiction_identifiers (scheme "census_geoid")
+      PRIMARY_DOMAIN: website (sparsely populated — mostly null)
+    note: 483 distinct cities (549 raw features — some have multipart/exclave
+      polygons, e.g. islands, counted separately; dedupe on CDTFA_CITY).
+
+  school_districts:
+    url: https://www.cde.ca.gov/schooldirectory/report?rid=dl1&tp=txt
+    provider: CA Department of Education, School & District Information system
+    type: dynamically-generated tab-delimited flat-file download — NOT a
+      queryable REST/JSON API like NY's ArcGIS layer; download the whole file
+      and filter client-side (an XLSX variant exists at rid=dl1&tp=xlsx&ict=Y)
+    field_mapping:
+      CDSCode (14-digit; county+district+school): jurisdiction_identifiers (scheme "cds")
+      District: name
+      County: parent county
+      DOCType: concept_id — 52=Elementary, 54=Unified, 56=High School District;
+        filter School="No Data" for district-level rows
+      WebSite: website
+    note: 18,409 total rows (schools + districts + COEs) as of this check.
+
+  # California's BOCES-equivalent — CDE doesn't publish these separately from
+  # school districts; same file, filtered differently
+  educational_region:
+    url: https://www.cde.ca.gov/schooldirectory/report?rid=dl1&tp=txt
+    field_mapping:
+      DOC: value "00" identifies a County Office of Education row (School="No Data")
+      District: name (e.g. "Alameda County Office of Education")
+      County: parent county
+    note: 60 rows found (58 active counties + 2 historical/merged entries).
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS already captured by the counties source above. That source's own
+      `Population` field (a 2014 CA Dept of Finance estimate) works as a
+      quicker, state-sourced fallback if a fresh Census API call isn't wanted.

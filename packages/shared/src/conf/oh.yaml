@@ -1,0 +1,159 @@
+# Ohio locale pack. See ny.yaml for the field-by-field doc comment
+# (profile/config, concepts, governance) — this file just fills in OH's own
+# vocabulary and structure; notes below cover only what's OH-specific.
+#
+# `judicial_region` and a `school_districts`/`educational_region` count are
+# intentionally absent: OH's Court of Common Pleas is one court per county
+# (88 for 88 — no multi-county grouping to model as a separate region), and
+# Educational Service Centers are organized one-per-county-or-joint with no
+# single confirmed statewide total.
+
+profile:
+  code: US-OH
+  name: Ohio
+  config:
+    athletic_sections: 6 # OHSAA geographic districts (Central/East/Northeast/Northwest/Southeast/Southwest); sport-specific enrollment divisions I-VII sit on top of these
+
+concepts:
+  state:
+    local_name: Ohio
+    has_active_government: true
+    default_body_name: General Assembly
+    executive_title: Governor
+    subdivisions: Counties
+    additional_subdivisions:
+      major_cities: [Columbus, Cleveland, Cincinnati, Toledo, Akron, Dayton, Youngstown]
+
+  county:
+    local_name: County
+    has_active_government: true
+    default_body_name: Board of County Commissioners
+    executive_title: County Executive
+    executive_required: false
+    # only Cuyahoga and Summit (2 of 88) have adopted a charter with an
+    # elected County Executive; every other county is run by the Board itself
+    subdivisions: Cities, Villages, Townships
+    legislative_committees: true
+    committees_label: Committees
+
+  city:
+    local_name: City
+    has_active_government: true
+    default_body_name: City Council
+    executive_title: Mayor
+    governance: [strong-mayor, council-manager]
+    governance_exceptions:
+      strong-mayor: [Columbus, Cleveland]
+      council-manager: [Cincinnati]
+    subdivisions: false
+
+  # active general-purpose civil townships (every township has a 3-member
+  # Board of Trustees), covering unincorporated area and some incorporated
+  # territory — not just a survey label
+  town:
+    local_name: Township
+    has_active_government: true
+    default_body_name: Board of Trustees
+    subdivisions: false
+
+  # a distinct legal category from `city`, split by population (city:
+  # 5,000+, village: under 5,000) rather than by charter choice
+  village:
+    local_name: Village
+    has_active_government: true
+    default_body_name: Village Council
+    executive_title: Mayor
+    governance: council-manager
+    subdivisions: false
+
+  school_district:
+    local_name: School District
+    has_active_government: true
+    default_body_name: Board of Education
+
+  educational_region:
+    local_name: Educational Service Center
+    local_abbrev: ESC
+    has_active_government: true
+    default_body_name: ESC Governing Board
+
+  scholastic_athletic_region:
+    local_name: District
+    parent_org_name: OHSAA
+    has_active_government: false
+
+  state_house_district:
+    local_name: House District
+    local_abbrev: HD
+    has_active_government: false
+
+  state_senate_district:
+    local_name: Senate District
+    local_abbrev: SD
+    has_active_government: false
+
+  us_house_district:
+    local_name: Congressional District
+    local_abbrev: CD
+    has_active_government: false
+
+  special_district:
+    local_name: Special District
+    has_active_government: true
+
+governance:
+  council-manager:
+    legislative_committees: false
+    legislative_districts: false
+
+  strong-mayor:
+    legislative_committees: true
+    committees_label: Committees
+
+# Documentary only (see profile.ts's StateProfile.sources comment and
+# ny.yaml's sources block for the field shape). Verified live against the
+# actual endpoints, not recalled from memory.
+sources:
+  counties:
+    url: https://maps.ohio.gov/arcgis/rest/services/OGRIP/boundaryData/MapServer/2
+    provider: OGRIP (Ohio Geographically Referenced Information Program) / Ohio DAS
+    type: ArcGIS REST MapServer
+    field_mapping:
+      NAME: name
+      CNTY_FIPS (or FIPS_NUM): attributes.county_fips
+      CNTY_CODE / CNTY_NUM: attributes.ohio_county_code
+    note: verified 88 counties via returnCountOnly, exact match. Same
+      boundaryData service also carries Cities (layer 0), Townships (layer
+      3), and School Districts (layer 9) — see below.
+
+  municipalities:
+    url: https://maps.ohio.gov/arcgis/rest/services/OGRIP/boundaryData/MapServer/0
+    provider: same OGRIP service, layer 0 "Cities" (covers both cities and villages)
+    type: ArcGIS REST MapServer
+    note: verified 939 rows (OH has ~251 cities + ~686 villages ≈ 937 — close
+      match). Townships are layer 3 of the same service (1,450 rows verified).
+
+  school_districts:
+    url: https://maps.ohio.gov/arcgis/rest/services/Hosted/Ohio_School_Districts_2025/FeatureServer/0
+    provider: same OGRIP host (also mirrored as layer 9 of boundaryData)
+    type: ArcGIS REST FeatureServer
+    field_mapping:
+      name: name
+      irn: jurisdiction_identifiers (scheme "ohio_irn") — Ohio's state district ID
+      countycode: parent county
+      taxid: attributes.tax_id
+    note: verified 615 districts, consistent with Ohio's ~612-615 current count.
+
+  educational_region:
+    status: no live GIS/API source found
+    note: OGRIP's boundaryData service has no ESC layer; Ohio DOE's own
+      ODE_Layers FeatureServer (geo1.oit.ohio.gov) was unreachable
+      (connection refused) when checked. The Ohio Educational Service
+      Center Association (oesca.org) publishes a member directory/map, but
+      it's not a queryable dataset.
+
+  population:
+    status: not yet ingested
+    recommended_source: US Census Bureau Population Estimates Program (PEP) —
+      https://api.census.gov/data/{year}/pep/population — joins on the county
+      FIPS already captured by the counties source above.
