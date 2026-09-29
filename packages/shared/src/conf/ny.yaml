@@ -162,6 +162,7 @@ concepts:
 # "Committees" if omitted).
 governance:
   council-manager:
+    chief_executive: false # the council-manager form does not have a separately elected chief executive
     legislative_committees: false
     legislative_districts: false
 

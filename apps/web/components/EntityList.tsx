@@ -10,7 +10,8 @@ export function EntityList({ items, basePath }: { items: EntityRef[]; basePath: 
   return (
     <ul className="entity-list">
       {items.map((item) => {
-        const href = item.slug ? `${basePath}/${item.slug}` : `/jurisdictions/${item.id}`;
+        const childPath = item.relativePath ?? item.slug;
+        const href = childPath ? `${basePath}/${childPath}` : `/jurisdictions/${item.id}`;
         return (
           <li key={item.id}>
             <Link href={href} className="entity-name">

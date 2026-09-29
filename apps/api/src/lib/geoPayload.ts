@@ -141,6 +141,9 @@ export interface EntityRef {
   concept: string;
   localName: string | null;
   slug: string | null;
+  // Path below the page's basePath when it isn't just `slug` (a major city
+  // listed on the state page: `westchester/yonkers`). Null = use `slug`.
+  relativePath: string | null;
   website: string | null;
   email: string | null;
   channels: ChannelInfo[];
@@ -324,6 +327,66 @@ async function loadBodies(pool: Pool, jurisdictionId: string): Promise<BodyInfoI
 // Attaches each jurisdiction's governing body (if any) as its contact/glyph
 // info — website falls back to the jurisdiction's own `website` column when
 // there is no governing body or the body has none set.
+// Finds jurisdictions by exact name among `rootId`'s descendants (`within`
+// chain, max 3 hops: state -> county -> town -> village). Names aren't unique
+// (Rochester is both a city in Monroe and a town in Ulster), so per name the
+// city wins, then the shallowest match. Rows come back in `names` order.
+//
+// Each row also carries `relative_path`, its URL path below the root
+// (`westchester/yonkers`): a direct child is just its own slug; anything
+// deeper is prefixed with its top-level ancestor's slug (the county), since
+// villages are routed as peers of their town under the county, not nested
+// under it (see the slug-scope note on withinChildren below).
+//
+// The lookup is stable between ingestion runs, so results are cached in
+// memory per root+names for NAMED_DESCENDANTS_TTL_MS.
+type NamedDescendantRow = {
+  jurisdiction_id: string;
+  name: string;
+  concept: string;
+  local_name: string | null;
+  slug: string | null;
+  website: string | null;
+  updated_at: Date;
+  relation_source_url: string | null;
+  relative_path: string | null;
+};
+const NAMED_DESCENDANTS_TTL_MS = 10 * 60 * 1000;
+const namedDescendantsCache = new Map<string, { at: number; rows: NamedDescendantRow[] }>();
+
+async function loadNamedDescendants(pool: Pool, rootId: string, names: string[]): Promise<NamedDescendantRow[]> {
+  if (names.length === 0) return [];
+  const cacheKey = `${rootId}|${names.join("|")}`;
+  const hit = namedDescendantsCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < NAMED_DESCENDANTS_TTL_MS) return hit.rows;
+  const { rows } = await pool.query<NamedDescendantRow>(
+    `with recursive d(id, depth, source_url, top_slug) as (
+       select r.from_id, 1, r.source_url, j.attributes->>'slug'
+         from jurisdiction_relations r join jurisdictions j on j.id = r.from_id
+        where r.to_id = $1 and r.relation = 'within'
+       union
+       select r.from_id, d.depth + 1, r.source_url, d.top_slug
+         from jurisdiction_relations r join d on r.to_id = d.id
+        where r.relation = 'within' and d.depth < 3
+     )
+     select distinct on (j.name) j.id as jurisdiction_id, j.name, tc.code as concept, cp.local_name,
+            j.attributes->>'slug' as slug, j.website, j.updated_at, d.source_url as relation_source_url,
+            case when j.attributes->>'slug' is null then null
+                 when d.depth = 1 or d.top_slug is null then j.attributes->>'slug'
+                 else d.top_slug || '/' || (j.attributes->>'slug') end as relative_path
+       from d
+       join jurisdictions j on j.id = d.id
+       join type_concepts tc on tc.id = j.concept_id
+       left join concept_profiles cp on cp.profile_id = j.profile_id and cp.concept_id = j.concept_id
+      where j.name = any($2)
+      order by j.name, (tc.code = 'city') desc, d.depth`,
+    [rootId, names],
+  );
+  const sorted = rows.sort((x, y) => names.indexOf(x.name) - names.indexOf(y.name));
+  namedDescendantsCache.set(cacheKey, { at: Date.now(), rows: sorted });
+  return sorted;
+}
+
 async function attachEntityChannels(
   pool: Pool,
   rows: {
@@ -334,6 +397,7 @@ async function attachEntityChannels(
     slug: string | null;
     website: string | null;
     updated_at: Date;
+    relative_path?: string | null;
   }[],
 ): Promise<EntityRef[]> {
   if (rows.length === 0) return [];
@@ -392,6 +456,7 @@ async function attachEntityChannels(
       concept: r.concept,
       localName: r.local_name,
       slug: r.slug,
+      relativePath: r.relative_path ?? null,
       website: body?.website ?? r.website,
       email: body?.email ?? null,
       channels: body ? channels.filter((c) => c.body_id === body.id).map(({ body_id: _body_id, ...c }) => c) : [],
@@ -657,13 +722,16 @@ export async function loadEntityPayload(pool: Pool, jurisdictionId: string): Pro
   // loadStateProfile) instead of hardcoding "ny" here.
   const nyProfile = loadStateProfile("ny");
   const subdivisionsConfig = subdivisionsForConcept(nyProfile, jurisdiction.concept);
-  // Extra sections (e.g. "Major Cities") pull specific within-children out of
-  // the main subdivisions list by name, so a jurisdiction like NYC — a direct
-  // within-child of the state alongside its counties — gets its own section
-  // instead of being lumped in among them.
+  // Extra sections (e.g. "Major Cities") surface specific named jurisdictions
+  // on this page even when they aren't direct within-children — Buffalo sits
+  // within Erie County, not the state. They're looked up by name among this
+  // jurisdiction's descendants (up to 3 `within` hops) and removed from the
+  // main subdivisions list if they happen to be direct children (NYC).
   const additionalSections = additionalSubdivisionSections(nyProfile, jurisdiction.concept);
-  const additionalNames = new Set(additionalSections.flatMap((s) => s.names));
-  const subdivisionRows = allSubdivisionRows.filter((r) => !additionalNames.has(r.name));
+  const additionalNames = Array.from(new Set(additionalSections.flatMap((s) => s.names)));
+  const additionalRows = await loadNamedDescendants(pool, jurisdictionId, additionalNames);
+  const additionalIds = new Set(additionalRows.map((r) => r.jurisdiction_id));
+  const subdivisionRows = allSubdivisionRows.filter((r) => !additionalIds.has(r.jurisdiction_id));
   const subdivisionsSource = firstSourceLink(subdivisionRows.map((r) => r.relation_source_url));
 
   // A concept whose governance form has no standing committees (a
@@ -702,7 +770,7 @@ export async function loadEntityPayload(pool: Pool, jurisdictionId: string): Pro
 
   const [subdivisions, additionalSubdivisionEntities, districts, linkedBase, candidateDocuments, frictions, adoptions] = await Promise.all([
     attachEntityChannels(pool, subdivisionRows),
-    Promise.all(additionalSections.map((s) => attachEntityChannels(pool, allSubdivisionRows.filter((r) => s.names.includes(r.name))))),
+    Promise.all(additionalSections.map((s) => attachEntityChannels(pool, additionalRows.filter((r) => s.names.includes(r.name))))),
     attachEntityChannels(pool, districtRows),
     attachEntityChannels(pool, overlapRows),
     loadCandidateDocuments(pool, jurisdictionId),
@@ -712,7 +780,7 @@ export async function loadEntityPayload(pool: Pool, jurisdictionId: string): Pro
   const additionalSubdivisions: SubdivisionSection[] = additionalSections.map((s, i) => ({
     label: s.label,
     entities: additionalSubdivisionEntities[i],
-    source: firstSourceLink(allSubdivisionRows.filter((r) => s.names.includes(r.name)).map((r) => r.relation_source_url)),
+    source: firstSourceLink(additionalRows.filter((r) => s.names.includes(r.name)).map((r) => r.relation_source_url)),
   }));
   const linkedEntities: LinkedEntityRef[] = linkedBase.map((entity, i) => ({
     ...entity,

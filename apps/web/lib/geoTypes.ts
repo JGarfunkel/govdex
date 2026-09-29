@@ -71,6 +71,9 @@ export interface EntityRef {
   concept: string;
   localName: string | null;
   slug: string | null;
+  // Path below the page's basePath when it isn't just `slug` (a major city
+  // on the state page: `westchester/yonkers`). Null = use `slug`.
+  relativePath?: string | null;
   website: string | null;
   email: string | null;
   channels: ChannelInfo[];
