@@ -269,7 +269,7 @@ async function loadBodies(pool: Pool, jurisdictionId: string): Promise<BodyInfoI
     [bodyIds],
   );
   const { rows: adoptions } = await pool.query<{
-    body_id: string;
+    body_id: string | null;
     id: string;
     product_name: string;
     function_code: string | null;
@@ -279,9 +279,15 @@ async function loadBodies(pool: Pool, jurisdictionId: string): Promise<BodyInfoI
        from adoptions a
        join products p on p.id = a.product_id
        left join product_functions pf on pf.id = p.function_id
-      where a.body_id = any($1)`,
-    [bodyIds],
+      where a.jurisdiction_id = $1`,
+    [jurisdictionId],
   );
+  // A jurisdiction-level adoption (body_id null — the jurisdiction licenses
+  // it) is shown on the executive and governing bodies, the top-level bodies
+  // that actually run the jurisdiction's tooling; body-level adoptions stay
+  // on their own body.
+  const isTopLevelOperator = (b: (typeof bodies)[number]) =>
+    !b.parent_body_id && (b.category === "chief_executive" || b.is_governmental);
 
   return bodies.map((b) => ({
     id: b.id,
@@ -300,7 +306,7 @@ async function loadBodies(pool: Pool, jurisdictionId: string): Promise<BodyInfoI
       .filter((s) => s.body_id === b.id)
       .map((s) => ({ id: s.id, title: s.title, officialId: s.current_official_id, officialName: s.current_official_name })),
     adoptions: adoptions
-      .filter((a) => a.body_id === b.id)
+      .filter((a) => (a.body_id === null ? isTopLevelOperator(b) : a.body_id === b.id))
       .map((a) => ({ id: a.id, productName: a.product_name, functionCode: a.function_code, instanceUrl: a.instance_url })),
   }));
 }

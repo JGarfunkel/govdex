@@ -96,11 +96,11 @@ async function main() {
      union all
      select 'jurisdictions.legistar_api_url', j.id::text, j.name, j.name from jurisdictions j where j.legistar_api_url = $1
      union all
-     select 'adoptions.instance_url', b.id::text, b.name || ' — ' || p.vendor || ' ' || p.name, j.name
+     select 'adoptions.instance_url', a.id::text, coalesce(b.name, j.name) || ' — ' || p.vendor || ' ' || p.name, j.name
        from adoptions a
        join products p on p.id = a.product_id
-       join bodies b on b.id = a.body_id
-       join jurisdictions j on j.id = b.jurisdiction_id
+       join jurisdictions j on j.id = a.jurisdiction_id
+       left join bodies b on b.id = a.body_id
       where a.instance_url = $1`,
     [entry.url],
   );

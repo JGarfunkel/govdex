@@ -163,7 +163,7 @@ candidatesRouter.post("/candidates/:id/promote", authMiddleware, async (req, res
       } else if (input.promoteAs === "adoptionLink" || input.promoteAs === "adoptionCreate") {
         // link_type='vendor' (guessed_function other than code_publishing) —
         // a GovTech product adoption. 'Link' attaches to an existing products
-        // row (scribe-tier, scoped through the adopting body's jurisdiction);
+        // row (scribe-tier, scoped through the adopting jurisdiction);
         // 'Create' mints a new products row first — products is a global
         // reference catalog gated editor/admin (field_policies), so only an
         // editor/admin can introduce a vendor's product to the catalog for
@@ -188,11 +188,17 @@ candidatesRouter.post("/candidates/:id/promote", authMiddleware, async (req, res
           if (!allowed) throw Object.assign(new Error("Not permitted to record an adoption here"), { status: 403 });
           productId = input.productId;
         }
+        // The adopting party is the candidate's jurisdiction (it's the
+        // jurisdiction that licenses the software); bodyId narrows it to one
+        // body of that jurisdiction, and the composite FK rejects any other.
+        const conflictTarget = input.bodyId
+          ? "(body_id, product_id) where body_id is not null"
+          : "(jurisdiction_id, product_id) where body_id is null";
         await client.query(
-          `insert into adoptions (body_id, product_id, instance_url, source_url, origin)
-           values ($1, $2, $3, $4, 'manual')
-           on conflict (body_id, product_id) do update set instance_url = excluded.instance_url`,
-          [input.bodyId, productId, candidate.target_url, candidate.target_url],
+          `insert into adoptions (jurisdiction_id, body_id, product_id, instance_url, source_url, origin)
+           values ($1, $2, $3, $4, $5, 'manual')
+           on conflict ${conflictTarget} do update set instance_url = excluded.instance_url`,
+          [candidate.jurisdiction_id, input.bodyId ?? null, productId, candidate.target_url, candidate.target_url],
         );
       } else {
         // link_type='agenda'/'minutes'/'agenda_minutes' — a meeting-record

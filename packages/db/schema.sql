@@ -327,7 +327,8 @@ create table bodies (
   created_at   timestamptz not null default now(),
   updated_by   uuid references users(id),
   updated_at   timestamptz not null default now(),
-  check (parent_body_id is null or parent_body_id <> id)
+  check (parent_body_id is null or parent_body_id <> id),
+  unique (id, jurisdiction_id)   -- target of adoptions' composite FK
 );
 create index idx_bodies_parent on bodies(parent_body_id) where parent_body_id is not null;
 -- Case/whitespace-insensitive uniqueness per jurisdiction (and per parent,
@@ -621,9 +622,13 @@ create table contracts (
   updated_at   timestamptz not null default now()
 );
 
+-- An adoption belongs to the jurisdiction that licenses the product; body_id is
+-- optional, for one body running its own tool (a planning board's permit
+-- tracker). The composite FK keeps a body within its adoption's jurisdiction.
 create table adoptions (
   id            uuid primary key default gen_random_uuid(),
-  body_id       uuid not null references bodies(id) on delete cascade,
+  jurisdiction_id uuid not null references jurisdictions(id) on delete cascade,
+  body_id       uuid,
   product_id    uuid not null references products(id) on delete restrict,
   contract_id   uuid references contracts(id) on delete set null,
   instance_url  text,                    -- the body's actual install
@@ -637,8 +642,12 @@ create table adoptions (
   created_at   timestamptz not null default now(),
   updated_by   uuid references users(id),
   updated_at   timestamptz not null default now(),
-  unique (body_id, product_id)
+  foreign key (body_id, jurisdiction_id) references bodies(id, jurisdiction_id) on delete cascade
 );
+create unique index adoptions_jurisdiction_product_key
+  on adoptions (jurisdiction_id, product_id) where body_id is null;
+create unique index adoptions_body_product_key
+  on adoptions (body_id, product_id) where body_id is not null;
 
 -- ---------------------------------------------------------------------------
 -- Scribe assignments + revision log
@@ -830,6 +839,7 @@ create index idx_roles_seat          on roles(seat_id);
 create index idx_roles_official      on roles(official_id);
 create index idx_channels_body       on channels(body_id);
 create index idx_adoptions_body      on adoptions(body_id);
+create index idx_adoptions_jurisdiction on adoptions(jurisdiction_id);
 create index idx_adoptions_product   on adoptions(product_id);
 create index idx_adoptions_contract  on adoptions(contract_id);
 create index idx_contracts_product   on contracts(product_id);
@@ -1007,7 +1017,7 @@ language sql stable as $$
     when 'bodies'                   then (p_row->>'jurisdiction_id')::uuid
     when 'seats'    then (select jurisdiction_id from bodies where id = (p_row->>'body_id')::uuid)
     when 'channels' then (select jurisdiction_id from bodies where id = (p_row->>'body_id')::uuid)
-    when 'adoptions'then (select jurisdiction_id from bodies where id = (p_row->>'body_id')::uuid)
+    when 'adoptions'then (p_row->>'jurisdiction_id')::uuid
     when 'contracts'then (p_row->>'holder_jurisdiction_id')::uuid
     when 'roles'    then (select b.jurisdiction_id from seats s
                           join bodies b on b.id = s.body_id

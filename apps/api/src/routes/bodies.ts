@@ -39,8 +39,8 @@ bodiesRouter.get("/bodies/:id", async (req, res) => {
        from adoptions a
        join products p on p.id = a.product_id
        left join product_functions pf on pf.id = p.function_id
-      where a.body_id = $1`,
-    [body.id],
+      where a.body_id = $1 or (a.body_id is null and a.jurisdiction_id = $2)`,
+    [body.id, body.jurisdiction_id],
   );
 
   res.json({ ...body, seats, channels, adoptions });

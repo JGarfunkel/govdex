@@ -77,12 +77,12 @@ export const candidatePromoteSchema = z.discriminatedUnion("promoteAs", [
   }),
   z.object({
     promoteAs: z.literal("adoptionLink"),
-    bodyId: z.string().uuid(),
+    bodyId: z.string().uuid().optional(), // omit = the jurisdiction itself adopted it
     productId: z.string().uuid(),
   }),
   z.object({
     promoteAs: z.literal("adoptionCreate"),
-    bodyId: z.string().uuid(),
+    bodyId: z.string().uuid().optional(), // omit = the jurisdiction itself adopted it
     vendor: z.string().min(1),
     productName: z.string().min(1),
     functionCode: z.string().min(1),

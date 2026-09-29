@@ -18,9 +18,10 @@ async function rowJurisdiction(client: PoolClient, tableName: string, diff: Reco
     case "jurisdiction_identifiers":
     case "bodies":
       return (diff.jurisdiction_id as string) ?? null;
+    case "adoptions":
+      return (diff.jurisdiction_id as string) ?? null;
     case "seats":
-    case "channels":
-    case "adoptions": {
+    case "channels": {
       const bodyId = diff.body_id as string | undefined;
       if (!bodyId) return null;
       const { rows } = await client.query("select jurisdiction_id from bodies where id = $1", [bodyId]);

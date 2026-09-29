@@ -389,17 +389,17 @@ export function SpiderCandidates({ jurisdictionId, bodies }: { jurisdictionId: s
 
   // link_type='vendor' (guessed_function other than code_publishing) —
   // outside promoteKind/promoteOne for the same reason as district: the
-  // editor must pick a body (source_body_id is unreliable on vendor rows)
-  // and either match an existing products row (ProductPicker — the
+  // adoption belongs to the candidate's jurisdiction (it licenses the
+  // software) unless the editor narrows it to one body (source_body_id is
+  // unreliable on vendor rows, so it's not used as a default), and either match an existing products row (ProductPicker — the
   // Granicus-hosts-several-products disambiguation) or add a new one.
   async function promoteAdoption(c: Candidate) {
     setError(null);
     setResult(null);
     const mode = adoptionMode[c.id] ?? "link";
-    const bodyId = adoptionBody[c.id] ?? c.source_body_id ?? bodies[0]?.id;
+    const bodyId = adoptionBody[c.id] || undefined; // "" = the jurisdiction itself
     setBusyId(c.id);
     try {
-      if (!bodyId) throw new Error("pick which body adopted this product");
       if (mode === "link") {
         const product = adoptionProduct[c.id];
         if (!product) throw new Error("pick a matching product first");
@@ -637,9 +637,9 @@ export function SpiderCandidates({ jurisdictionId, bodies }: { jurisdictionId: s
                             {adoptionResultCount[c.id] !== 0 && <option value="link">Link to existing product</option>}
                             <option value="create">Add new product</option>
                           </select>
-                          {bodies.length > 1 && (
+                          {bodies.length > 0 && (
                             <select
-                              value={adoptionBody[c.id] ?? c.source_body_id ?? bodies[0]?.id ?? ""}
+                              value={adoptionBody[c.id] ?? ""}
                               onChange={(e) => setAdoptionBody((cur) => ({ ...cur, [c.id]: e.target.value }))}
                             >
                               {bodies.map((b) => (
@@ -662,6 +662,7 @@ export function SpiderCandidates({ jurisdictionId, bodies }: { jurisdictionId: s
                             }}
                           />
                         ) : (
+                              <option value="">Whole jurisdiction</option>
                           <span className="spider-candidate-form">
                             <input
                               type="text"
