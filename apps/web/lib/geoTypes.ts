@@ -35,6 +35,14 @@ export interface AdoptionInfo {
   instanceUrl: string | null;
 }
 
+// One adoption for the page-level Adoptions card: bodyName is null when the
+// jurisdiction itself is the adopter (the common case).
+export interface AdoptionDetail extends AdoptionInfo {
+  vendor: string;
+  bodyId: string | null;
+  bodyName: string | null;
+}
+
 export interface BodyInfo {
   id: string;
   name: string;
@@ -115,12 +123,14 @@ export interface GeoPayload {
     website: string | null;
     policyUrl: string | null;
     budgetUrl: string | null;
+    calendarUrl: string | null;
     hasActiveGovernment: boolean;
     hasSevereFriction: boolean;
     verification: string;
     origin: string;
     updatedAt: string;
   };
+  adoptions: AdoptionDetail[];
   chiefExecutive: BodyInfo[];
   governingBody: BodyInfo[];
   legislativeDistricts: { seats: SeatInfo[]; districts: EntityRef[] };

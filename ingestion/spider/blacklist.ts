@@ -1,8 +1,8 @@
 // Per-jurisdiction list of candidate_links target_urls confirmed dead (404,
 // gone, unresolvable host, ...) by ingestion/tools/prune-dead-candidates.ts.
-// Checked into git (unlike data/govdex/, which is regeneratable and
-// gitignored) since this records a judgment — "we already checked, it's
-// gone" — that a future crawl shouldn't have to re-discover and a scribe
+// Lives in data/govdex/blacklists/, which is checked into git (the rest of
+// data/govdex/ is regeneratable and gitignored) since this records a judgment
+// — "we already checked, it's gone" — that a future crawl shouldn't have to re-discover and a scribe
 // shouldn't have to re-triage. Consulted by crawlSeed.ts so a dead link
 // found again on a later crawl of the same site is silently skipped rather
 // than re-inserted as a 'new' candidate.
@@ -10,7 +10,7 @@ import fs from "fs";
 import path from "path";
 import { normalizeUrl } from "./urlMatch";
 
-const BLACKLIST_DIR = path.resolve(process.cwd(), "ingestion/spider/blacklists");
+const BLACKLIST_DIR = path.resolve(process.cwd(), "data/govdex/blacklists");
 
 export interface BlacklistEntry {
   url: string;

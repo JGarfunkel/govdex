@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { govdexFetchJson } from "../lib/api";
-import { EditableGlyph } from "./EditableGlyph";
+import { EditableGlyph, type GlyphEdit } from "./EditableGlyph";
 
 // The jurisdiction-level website line in EntityPage's header: the link
 // itself, a click-to-edit pencil (writes jurisdictions.website via /propose,
@@ -18,17 +18,42 @@ import { EditableGlyph } from "./EditableGlyph";
 // has_active_government) — a district that just elects a member to a
 // larger body (an Assembly/Senate/Congressional district, say) has no
 // budget of its own to publish.
+// One labelled "Key Resources" chip: linked and colored when the resource is
+// recorded, faint when not (right-click to add, for editors).
+function ResourceChip({ icon, label, href, edit }: { icon: string; label: string; href?: string | null; edit?: GlyphEdit }) {
+  const content = (
+    <>
+      <i className={`ti ${icon}`} /> {label}
+    </>
+  );
+  return (
+    <EditableGlyph edit={edit}>
+      {href ? (
+        <a className="resource-chip" href={href} target="_blank" rel="noopener noreferrer" title={edit ? `${label} (right-click to edit)` : label}>
+          {content}
+        </a>
+      ) : (
+        <span className="resource-chip resource-chip-missing" title={edit ? `no ${label.toLowerCase()} (right-click to add)` : `no ${label.toLowerCase()} recorded`}>
+          {content}
+        </span>
+      )}
+    </EditableGlyph>
+  );
+}
+
 export function HeaderWebsite({
   jurisdictionId,
   website,
   policyUrl,
   budgetUrl,
+  calendarUrl,
   hasActiveGovernment,
 }: {
   jurisdictionId: string;
   website: string | null;
   policyUrl?: string | null;
   budgetUrl?: string | null;
+  calendarUrl?: string | null;
   hasActiveGovernment?: boolean;
 }) {
   const router = useRouter();
@@ -36,7 +61,7 @@ export function HeaderWebsite({
   const [unearthing, setUnearthing] = useState(false);
   const [unearthStatus, setUnearthStatus] = useState<string | null>(null);
 
-  async function proposeField(column: "website" | "policy_url" | "budget_url", newValue: string | null) {
+  async function proposeField(column: "website" | "policy_url" | "budget_url" | "calendar_url", newValue: string | null) {
     return govdexFetchJson<{ revisionId: string; applied: boolean }>("/propose", {
       method: "POST",
       idToken: idToken ?? undefined,
@@ -67,7 +92,7 @@ export function HeaderWebsite({
     }
   }
 
-  return (
+  const websiteLine = (
     <p className="entity-website">
       {website ? (
         <a href={website} target="_blank" rel="noopener noreferrer">
@@ -87,36 +112,39 @@ export function HeaderWebsite({
         </button>
       )}
       {unearthStatus && <span className="entity-meta">{unearthStatus}</span>}
-      <span className="glyph-divider" aria-hidden="true" />
-      <EditableGlyph
-        edit={canEdit ? { value: policyUrl ?? null, kind: "url", save: (v) => proposeField("policy_url", v) } : undefined}
-      >
-        {policyUrl ? (
-          <a href={policyUrl} target="_blank" rel="noopener noreferrer" title={canEdit ? "policies / law (right-click to edit)" : "policies / law"}>
-            <i className="ti ti-gavel" style={{ color: "#5a686e" }} />
-          </a>
-        ) : (
-          <i className="ti ti-gavel" title={canEdit ? "no policies / law (right-click to edit)" : "no policies / law"} />
-        )}
-      </EditableGlyph>
-      {hasActiveGovernment && (
-        <EditableGlyph
-          edit={canEdit ? { value: budgetUrl ?? null, kind: "url", save: (v) => proposeField("budget_url", v) } : undefined}
-        >
-          {budgetUrl ? (
-            <a href={budgetUrl} target="_blank" rel="noopener noreferrer" title={canEdit ? "budget (right-click to edit)" : "budget"}>
-              <i className="ti ti-report-money" style={{ color: "#5a686e" }} />
-            </a>
-          ) : (
-            <i className="ti ti-report-money" title={canEdit ? "no budget (right-click to edit)" : "no budget"} />
-          )}
-        </EditableGlyph>
-      )}
-      {/* No projects_url field exists yet, so this is always the faint "no
-          projects" state — same has_active_government gate as Rules/Budget,
-          per data-dictionary.md's Typing rules. */}
-      {hasActiveGovernment && <i className="ti ti-crane" title="no projects" />}
-      {unearthStatus && <span className="entity-meta">{unearthStatus}</span>}
     </p>
+  );
+
+  return (
+    <>
+      {websiteLine}
+      <div className="key-resources" aria-label="Key Resources">
+        <span className="key-resources-label">Key Resources</span>
+        <ResourceChip
+          icon="ti-gavel"
+          label="Rules"
+          href={policyUrl}
+          edit={canEdit ? { value: policyUrl ?? null, kind: "url", save: (v) => proposeField("policy_url", v) } : undefined}
+        />
+        {hasActiveGovernment && (
+          <ResourceChip
+            icon="ti-report-money"
+            label="Budget"
+            href={budgetUrl}
+            edit={canEdit ? { value: budgetUrl ?? null, kind: "url", save: (v) => proposeField("budget_url", v) } : undefined}
+          />
+        )}
+        <ResourceChip
+          icon="ti-calendar"
+          label="Meetings"
+          href={calendarUrl}
+          edit={canEdit ? { value: calendarUrl ?? null, kind: "url", save: (v) => proposeField("calendar_url", v) } : undefined}
+        />
+        {/* No projects_url field exists yet, so this is always the faint
+            "not recorded" state — same has_active_government gate as
+            Rules/Budget, per data-dictionary.md's Typing rules. */}
+        {hasActiveGovernment && <ResourceChip icon="ti-crane" label="Projects" href={null} />}
+      </div>
+    </>
   );
 }

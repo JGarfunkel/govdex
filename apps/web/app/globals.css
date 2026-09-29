@@ -479,3 +479,39 @@ main {
 .glyph-popover-status {
   color: var(--soft);
 }
+
+/* "Key Resources" chip row in the entity header: labelled so a resident can
+   see at a glance what is (and isn't) published; missing ones stay faint. */
+.entity-header .key-resources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.key-resources-label {
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--soft);
+}
+.resource-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.85em;
+  text-decoration: none;
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+a.resource-chip:hover {
+  border-color: var(--accent);
+}
+.resource-chip-missing {
+  color: var(--faint);
+  background: transparent;
+  border-style: dashed;
+}

@@ -79,6 +79,14 @@ export interface AdoptionInfo {
   instanceUrl: string | null;
 }
 
+// One adoption for the page-level Adoptions card: body is null when the
+// jurisdiction itself is the adopter (the common case).
+export interface AdoptionDetail extends AdoptionInfo {
+  vendor: string;
+  bodyId: string | null;
+  bodyName: string | null;
+}
+
 export interface BodyInfo {
   id: string;
   name: string;
@@ -182,12 +190,14 @@ export interface GeoPayload {
     website: string | null;
     policyUrl: string | null;
     budgetUrl: string | null;
+    calendarUrl: string | null;
     hasActiveGovernment: boolean;
     hasSevereFriction: boolean;
     verification: string;
     origin: string;
     updatedAt: string;
   };
+  adoptions: AdoptionDetail[];
   chiefExecutive: BodyInfo[];
   governingBody: BodyInfo[];
   legislativeDistricts: { seats: SeatInfo[]; districts: EntityRef[] };
@@ -491,6 +501,37 @@ async function loadFriction(pool: Pool, jurisdictionId: string): Promise<Frictio
   }));
 }
 
+async function loadAdoptions(pool: Pool, jurisdictionId: string): Promise<AdoptionDetail[]> {
+  const { rows } = await pool.query<{
+    id: string;
+    product_name: string;
+    vendor: string;
+    function_code: string | null;
+    instance_url: string | null;
+    body_id: string | null;
+    body_name: string | null;
+  }>(
+    `select a.id, p.name as product_name, p.vendor, pf.code as function_code, a.instance_url,
+            a.body_id, b.name as body_name
+       from adoptions a
+       join products p on p.id = a.product_id
+       left join product_functions pf on pf.id = p.function_id
+       left join bodies b on b.id = a.body_id
+      where a.jurisdiction_id = $1
+      order by (a.body_id is not null), p.name`,
+    [jurisdictionId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    productName: r.product_name,
+    vendor: r.vendor,
+    functionCode: r.function_code,
+    instanceUrl: r.instance_url,
+    bodyId: r.body_id,
+    bodyName: r.body_name,
+  }));
+}
+
 export async function loadEntityPayload(pool: Pool, jurisdictionId: string): Promise<GeoPayload | null> {
   const { rows: jurRows } = await pool.query<{
     id: string;
@@ -498,6 +539,7 @@ export async function loadEntityPayload(pool: Pool, jurisdictionId: string): Pro
     website: string | null;
     policy_url: string | null;
     budget_url: string | null;
+    calendar_url: string | null;
     legislative_districts_url: string | null;
     verification: string;
     origin: string;
@@ -508,7 +550,7 @@ export async function loadEntityPayload(pool: Pool, jurisdictionId: string): Pro
     updated_at: Date;
     has_active_government: boolean | null;
   }>(
-    `select j.id, j.name, j.website, j.policy_url, j.budget_url, j.legislative_districts_url, j.verification, j.origin,
+    `select j.id, j.name, j.website, j.policy_url, j.budget_url, j.calendar_url, j.legislative_districts_url, j.verification, j.origin,
             tc.code as concept, cp.local_name, cp.local_abbrev,
             j.attributes->>'slug' as slug, j.updated_at, cp.has_active_government
        from jurisdictions j
@@ -658,13 +700,14 @@ export async function loadEntityPayload(pool: Pool, jurisdictionId: string): Pro
     [jurisdictionId],
   );
 
-  const [subdivisions, additionalSubdivisionEntities, districts, linkedBase, candidateDocuments, frictions] = await Promise.all([
+  const [subdivisions, additionalSubdivisionEntities, districts, linkedBase, candidateDocuments, frictions, adoptions] = await Promise.all([
     attachEntityChannels(pool, subdivisionRows),
     Promise.all(additionalSections.map((s) => attachEntityChannels(pool, allSubdivisionRows.filter((r) => s.names.includes(r.name))))),
     attachEntityChannels(pool, districtRows),
     attachEntityChannels(pool, overlapRows),
     loadCandidateDocuments(pool, jurisdictionId),
     loadFriction(pool, jurisdictionId),
+    loadAdoptions(pool, jurisdictionId),
   ]);
   const additionalSubdivisions: SubdivisionSection[] = additionalSections.map((s, i) => ({
     label: s.label,
@@ -693,12 +736,14 @@ export async function loadEntityPayload(pool: Pool, jurisdictionId: string): Pro
       website: jurisdiction.website,
       policyUrl: jurisdiction.policy_url,
       budgetUrl: jurisdiction.budget_url,
+      calendarUrl: jurisdiction.calendar_url,
       hasActiveGovernment: jurisdiction.has_active_government ?? false,
       hasSevereFriction: frictions.some((a) => a.severity === "severe"),
       verification: jurisdiction.verification,
       origin: jurisdiction.origin,
       updatedAt: jurisdictionUpdatedAt.toISOString(),
     },
+    adoptions,
     chiefExecutive: chiefExecutiveInternal.map(toBodyInfo),
     governingBody: governingBodyInternal.map(toBodyInfo),
     legislativeDistricts: { seats, districts },

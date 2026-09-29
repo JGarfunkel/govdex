@@ -43,9 +43,11 @@ export function JurisdictionPicker({
       if (level) params.set("level", level);
       govdexFetchJson<{ jurisdictions: JurisdictionResult[] }>(`/jurisdictions?${params}`, { idToken })
         .then((d) => {
+          console.log("[JurisdictionPicker] search", { query, level, count: d.jurisdictions.length });
           if (!cancelled) setResults(d.jurisdictions);
         })
-        .catch(() => {
+        .catch((err) => {
+          console.error("[JurisdictionPicker] search failed", { query, level, err });
           if (!cancelled) setResults([]);
         });
     }, SEARCH_DEBOUNCE_MS);

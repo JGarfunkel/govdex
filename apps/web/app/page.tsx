@@ -3,7 +3,10 @@ import { govdexFetchJson } from "../lib/api";
 
 async function loadConfiguredStates(): Promise<string[]> {
   try {
-    const { states } = await govdexFetchJson<{ states: string[] }>("/conf");
+    const { states } = await govdexFetchJson<{ states: string[] }>("/conf", {
+      // Only changes when a locale pack YAML is added, so cache it.
+      next: { revalidate: 300 },
+    } as RequestInit);
     return states;
   } catch {
     return [];

@@ -7,6 +7,7 @@ import { EntityList } from "./EntityList";
 import { HeaderWebsite } from "./HeaderWebsite";
 import { SpiderCandidates } from "./SpiderCandidates";
 import { Friction } from "./Friction";
+import { AdoptionsCard } from "./AdoptionsCard";
 import type { GeoPayload } from "../lib/geoTypes";
 
 interface Crumb {
@@ -25,6 +26,7 @@ export function EntityPage({
 }) {
   const {
     jurisdiction,
+    adoptions,
     chiefExecutive,
     governingBody,
     legislativeDistricts,
@@ -71,6 +73,7 @@ export function EntityPage({
           website={jurisdiction.website}
           policyUrl={jurisdiction.policyUrl}
           budgetUrl={jurisdiction.budgetUrl}
+          calendarUrl={jurisdiction.calendarUrl}
           hasActiveGovernment={jurisdiction.hasActiveGovernment}
         />
         <p className="entity-meta">
@@ -90,7 +93,7 @@ export function EntityPage({
 
       <SpiderCandidates jurisdictionId={jurisdiction.id} bodies={allBodies} />
 
-      <AccordionSection title="Chief executive" count={chiefExecutive.length} defaultOpen>
+      <section className="entity-plain">
         {chiefExecutive.length === 0 && <p className="field-blank">No chief executive recorded.</p>}
         <ul className="entity-list">
           {chiefExecutive.map((b) => (
@@ -114,9 +117,9 @@ export function EntityPage({
             </li>
           ))}
         </ul>
-      </AccordionSection>
+      </section>
 
-      <AccordionSection title="Governing body" count={governingBody.length} defaultOpen>
+      <section className="entity-plain">
         {governingBody.length === 0 && <p className="field-blank">No governing body recorded.</p>}
         <ul className="entity-list">
           {governingBody.map((b) => (
@@ -140,7 +143,9 @@ export function EntityPage({
             </li>
           ))}
         </ul>
-      </AccordionSection>
+      </section>
+
+      <AdoptionsCard adoptions={adoptions} />
 
       {legislativeDistrictsLabel && (
         <AccordionSection
@@ -219,19 +224,19 @@ export function EntityPage({
         </ul>
       </AccordionSection>
 
-      {subdivisionsLabel && (
-        <AccordionSection title={subdivisionsLabel} count={subdivisions.length} source={subdivisionsSource}>
-          {subdivisions.length === 0 && <p className="field-blank">No {subdivisionsLabel.toLowerCase()} recorded.</p>}
-          <EntityList items={subdivisions} basePath={basePath} />
-        </AccordionSection>
-      )}
-
       {additionalSubdivisions.map((section) => (
         <AccordionSection key={section.label} title={section.label} count={section.entities.length} source={section.source}>
           {section.entities.length === 0 && <p className="field-blank">No {section.label.toLowerCase()} recorded.</p>}
           <EntityList items={section.entities} basePath={basePath} />
         </AccordionSection>
       ))}
+
+      {subdivisionsLabel && (
+        <AccordionSection title={subdivisionsLabel} count={subdivisions.length} source={subdivisionsSource}>
+          {subdivisions.length === 0 && <p className="field-blank">No {subdivisionsLabel.toLowerCase()} recorded.</p>}
+          <EntityList items={subdivisions} basePath={basePath} />
+        </AccordionSection>
+      )}
 
       <AccordionSection title="Linked entities" count={linkedEntities.length}>
         {linkedEntities.length === 0 && <p className="field-blank">No linked entities recorded.</p>}

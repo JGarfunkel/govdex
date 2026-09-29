@@ -25,6 +25,13 @@ reject:
   - "Liaison"
   - "Apply"
   - "Openings"
+  - "Draft"
+  - "Guidelines"
+  - "Minutes"
+  - "Duties"
+  - "Job Board"
+  - "(Sunset"
+  - "Friends of the"
 
 # Substrings (case-insensitive) that mark a link's URL itself as the wrong
 # kind of page, independent of anchor text — checked against the full URL,

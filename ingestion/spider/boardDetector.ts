@@ -58,6 +58,39 @@ function getDistrictRegex(): RegExp {
   return districtRegex;
 }
 
+const SLUG_STOPWORDS = new Set(["of", "the", "and", "for", "to", "a", "an"]);
+
+function slugStem(token: string): string {
+  return token.length > 3 && token.endsWith("s") ? token.slice(0, -1) : token;
+}
+
+// Fraction (0..1) of a board name's meaningful tokens that appear among the
+// URL path's tokens — the discriminator for picking one of several links to
+// the same board: "/planning-board" scores 1 for "Planning Board", while an
+// opaque "/203/Page" scores 0. Ties are the caller's to break. Query
+// string/fragment are ignored.
+export function boardSlugScore(name: string, url: string): number {
+  const nameTokens = words(stripTrailingParenthetical(name))
+    .flatMap((w) => w.split(/[^a-z0-9]+/))
+    .filter((t) => t && !SLUG_STOPWORDS.has(t))
+    .map(slugStem);
+  if (nameTokens.length === 0) return 0;
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return 0;
+  }
+  const slugTokens = new Set(
+    pathname
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean)
+      .map(slugStem),
+  );
+  return nameTokens.filter((t) => slugTokens.has(t)).length / nameTokens.length;
+}
+
 export interface BoardGuess {
   name: string;
   // 'district' — a school/fire/sewer/water/etc. district: its own

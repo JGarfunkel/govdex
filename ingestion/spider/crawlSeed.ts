@@ -3,7 +3,7 @@ import { politeFetch, politeFetchWithType } from "./fetcher";
 import { runCascade, findHubLink, findBoardsHubLink, findGovHubLink, fetchHiddenSubmenuPage } from "./cascade";
 import { classifyLink, isMunicipalSocialProfile, handleNamesJurisdiction, extractAccountName } from "./classifier";
 import { classifyVendor } from "./vendorClassifier";
-import { guessBoard } from "./boardDetector";
+import { guessBoard, boardSlugScore } from "./boardDetector";
 import { guessAgendaMatch, normalize as normalizeBodyName } from "./agendaDetector";
 import { isAffiliatedVendorHost } from "./affiliation";
 import { looksLikeCalendarLink, canonicalizeCalendarLink, guessLegistarCalendarUrl } from "./calendarDetector";
@@ -240,6 +240,73 @@ async function reconcileBudget(
     [jurisdictionId, targetUrl],
   );
   return rows.length === 0 ? "new" : "duplicate";
+}
+
+// A jurisdiction's site commonly links the same board twice (a nav item and a
+// page-body link, say) under different URLs, e.g. "/203/Planning-Board" vs
+// "/DocumentCenter/..." or an opaque "/page.aspx?id=7". The link whose URL
+// slug best matches the board's name tokens (boardSlugScore) is the one
+// candidate a scribe should see; ties keep whichever is already there.
+// Never demotes a status='promoted' row.
+async function reconcileBoard(
+  pool: ReturnType<typeof getPool>,
+  jurisdictionId: string | null,
+  targetUrl: string,
+  bodyName: string,
+): Promise<"new" | "duplicate"> {
+  if (!jurisdictionId) return "new";
+  const { rows } = await pool.query<{ id: string; target_url: string; status: string; guessed_body_name: string | null }>(
+    `select id, target_url, status, guessed_body_name from candidate_links
+       where jurisdiction_id = $1 and link_type = 'board'
+         and status <> 'rejected' and status <> 'duplicate' and target_url <> $2`,
+    [jurisdictionId, targetUrl],
+  );
+  const wanted = normalizeBodyName(bodyName);
+  const same = rows.filter((r) => r.guessed_body_name != null && normalizeBodyName(r.guessed_body_name) === wanted);
+  if (same.length === 0) return "new";
+  if (same.some((r) => r.status === "promoted")) return "duplicate";
+
+  const myScore = boardSlugScore(bodyName, targetUrl);
+  const bestExisting = Math.max(...same.map((r) => boardSlugScore(bodyName, r.target_url)));
+  if (myScore <= bestExisting) return "duplicate";
+
+  await pool.query(`update candidate_links set status = 'duplicate' where id = any($1::uuid[]) and status = 'new'`, [
+    same.map((r) => r.id),
+  ]);
+  return "new";
+}
+
+// A jurisdiction's boards/committees directory is commonly linked more than
+// once too — the dedicated hub found by findBoardsHubLink plus a nav item or
+// footer link with slightly different anchor text ("Boards & Committees" vs
+// "Boards and Commissions"), each a different target_url. One directory
+// candidate per jurisdiction is enough for a scribe to triage; the link whose
+// URL slug best matches its own title (boardSlugScore) wins, ties keep the
+// existing row. Never demotes a status='promoted' row.
+async function reconcileIndex(
+  pool: ReturnType<typeof getPool>,
+  jurisdictionId: string | null,
+  targetUrl: string,
+  title: string | null,
+): Promise<"new" | "duplicate"> {
+  if (!jurisdictionId) return "new";
+  const { rows } = await pool.query<{ id: string; target_url: string; status: string; title: string | null }>(
+    `select id, target_url, status, title from candidate_links
+       where jurisdiction_id = $1 and link_type = 'index'
+         and status <> 'rejected' and status <> 'duplicate' and target_url <> $2`,
+    [jurisdictionId, targetUrl],
+  );
+  if (rows.length === 0) return "new";
+  if (rows.some((r) => r.status === "promoted")) return "duplicate";
+
+  const myScore = title ? boardSlugScore(title, targetUrl) : 0;
+  const bestExisting = Math.max(...rows.map((r) => (r.title ? boardSlugScore(r.title, r.target_url) : 0)));
+  if (myScore <= bestExisting) return "duplicate";
+
+  await pool.query(`update candidate_links set status = 'duplicate' where id = any($1::uuid[]) and status = 'new'`, [
+    rows.map((r) => r.id),
+  ]);
+  return "new";
 }
 
 // A jurisdiction's meeting/events calendar is commonly linked more than once
@@ -496,6 +563,7 @@ export async function crawlSeed(
       targetUrl: boardsHub,
       linkType: "index",
       title: "Boards & Committees",
+      status: await reconcileIndex(pool, jurisdictionId, boardsHub, "Boards & Committees"),
     });
     if (indexInserted) {
       written++;
@@ -627,7 +695,11 @@ export async function crawlSeed(
             ? await reconcileBudget(pool, jurisdictionId, targetUrl)
             : isCalendar
               ? await reconcileCalendar(pool, jurisdictionId, targetUrl)
-              : "new";
+              : linkType === "board" && guessedBodyName
+                ? await reconcileBoard(pool, jurisdictionId, targetUrl, guessedBodyName)
+                : linkType === "index"
+                  ? await reconcileIndex(pool, jurisdictionId, targetUrl, hit.text ?? null)
+                  : "new";
 
       // Channel candidates don't care about the source page's anchor text —
       // "platform: AccountName" (or just "platform" when the URL carries no

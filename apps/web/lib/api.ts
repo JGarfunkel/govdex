@@ -14,10 +14,12 @@ export async function govdexFetch(path: string, init?: RequestInit & { idToken?:
   if (idToken) headers.set("Authorization", `Bearer ${idToken}`);
   if (rest.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
+  // Default to no-store; callers opting into Next's data cache pass
+  // `next: { revalidate }` (which can't be combined with no-store).
   const res = await fetch(`${apiBaseUrl()}/api/stack${path}`, {
     ...rest,
     headers,
-    cache: "no-store",
+    ...((rest as { next?: unknown }).next ? {} : { cache: "no-store" as const }),
   });
   return res;
 }

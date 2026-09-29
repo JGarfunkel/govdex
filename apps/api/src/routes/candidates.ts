@@ -221,6 +221,12 @@ candidatesRouter.post("/candidates/:id/promote", authMiddleware, async (req, res
         ]);
       }
 
+      // Promoting/linking is an update to the jurisdiction the candidate was
+      // found on. Some targets (channels, adoptions, relations) don't bump
+      // jurisdictions.updated_at themselves, so touch it explicitly — the
+      // set_updated_at trigger stamps it.
+      await client.query("update jurisdictions set updated_at = now() where id = $1", [candidate.jurisdiction_id]);
+
       await client.query(
         "update candidate_links set status = 'promoted', reviewed_by = $1, reviewed_at = now() where id = $2",
         [user.id, candidate.id],

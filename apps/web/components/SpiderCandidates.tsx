@@ -352,7 +352,15 @@ export function SpiderCandidates({ jurisdictionId, bodies }: { jurisdictionId: s
     try {
       if (mode === "link") {
         const target = districtJurisdiction[c.id];
-        if (!target) throw new Error("pick a matching jurisdiction first");
+        if (!target) {
+          console.error("[promoteDistrict] no target selected", {
+            candidateId: c.id,
+            mode,
+            districtJurisdiction,
+            keys: Object.keys(districtJurisdiction),
+          });
+          throw new Error("pick a matching jurisdiction first");
+        }
         await govdexFetchJson(`/candidates/${c.id}/promote`, {
           method: "POST",
           idToken: idToken ?? undefined,
@@ -596,7 +604,10 @@ export function SpiderCandidates({ jurisdictionId, bodies }: { jurisdictionId: s
                             idToken={idToken ?? undefined}
                             level="special_district"
                             defaultQuery={c.guessed_jurisdiction_name ?? ""}
-                            onSelect={(r) => setDistrictJurisdiction((cur) => ({ ...cur, [c.id]: r }))}
+                            onSelect={(r) => {
+                              console.log("[JurisdictionPicker] onSelect", { candidateId: c.id, result: r });
+                              setDistrictJurisdiction((cur) => ({ ...cur, [c.id]: r }));
+                            }}
                           />
                         ) : (
                           <span className="spider-candidate-form">
@@ -619,7 +630,16 @@ export function SpiderCandidates({ jurisdictionId, bodies }: { jurisdictionId: s
                         <button
                           type="button"
                           className="unearth-button"
-                          disabled={busyId === c.id || bulkBusy !== null}
+                          disabled={
+                            busyId === c.id ||
+                            bulkBusy !== null ||
+                            ((districtMode[c.id] ?? "link") === "link" && !districtJurisdiction[c.id])
+                          }
+                          title={
+                            (districtMode[c.id] ?? "link") === "link" && !districtJurisdiction[c.id]
+                              ? "Search and click a matching jurisdiction first"
+                              : undefined
+                          }
                           onClick={() => promoteDistrict(c)}
                         >
                           {busyId === c.id ? "Promoting…" : (districtMode[c.id] ?? "link") === "link" ? "Link district" : "Create & link district"}
@@ -642,6 +662,7 @@ export function SpiderCandidates({ jurisdictionId, bodies }: { jurisdictionId: s
                               value={adoptionBody[c.id] ?? ""}
                               onChange={(e) => setAdoptionBody((cur) => ({ ...cur, [c.id]: e.target.value }))}
                             >
+                              <option value="">Whole jurisdiction</option>
                               {bodies.map((b) => (
                                 <option key={b.id} value={b.id}>
                                   {b.name}
@@ -662,7 +683,6 @@ export function SpiderCandidates({ jurisdictionId, bodies }: { jurisdictionId: s
                             }}
                           />
                         ) : (
-                              <option value="">Whole jurisdiction</option>
                           <span className="spider-candidate-form">
                             <input
                               type="text"

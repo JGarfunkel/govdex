@@ -4,6 +4,33 @@ import { authMiddleware } from "../auth";
 
 export const jurisdictionsRouter = Router();
 
+// School-district names are stored abbreviated by the state import ("Pocantico
+// Hills Csd", "Amagansett Ufsd", "Albany City Sd") but the spider/humans write
+// them out ("Central School District"). Stem both sides to the abbreviation
+// before matching. Order matters: specific phrases before the generic one.
+const NAME_STEMS: [phrase: string, abbrev: string][] = [
+  ["central school district", "csd"],
+  ["union free school district", "ufsd"],
+  ["school district", "sd"],
+];
+
+function normalizeName(name: string): string {
+  let out = name.toLowerCase();
+  for (const [phrase, abbrev] of NAME_STEMS) out = out.replaceAll(phrase, abbrev);
+  return out.replace(/\s+/g, " ").trim();
+}
+
+// Same stemming, expressed in SQL for the stored name. Phrases are constants.
+const NORMALIZED_NAME_SQL = NAME_STEMS.reduce(
+  (expr, [phrase, abbrev]) => `regexp_replace(${expr}, '\\m${phrase}\\M', '${abbrev}', 'gi')`,
+  "lower(j.name)",
+);
+
+// Show the abbreviations that matched in caps ("Pocantico Hills CSD").
+function displayName(name: string): string {
+  return name.replace(/\b(csd|ufsd|sd)\b/gi, (m) => m.toUpperCase());
+}
+
 // GET /jurisdictions?q=<name>&level=<type_concepts.level> — name search used
 // by the scribe UI to match a spider-found special district (candidate_links
 // link_type='district') against an existing jurisdiction (e.g. one
@@ -21,13 +48,13 @@ jurisdictionsRouter.get("/jurisdictions", authMiddleware, async (req, res) => {
     `select j.id, j.name, tc.code as concept_code, tc.level
        from jurisdictions j
        join type_concepts tc on tc.id = j.concept_id
-      where j.name ilike '%' || $1 || '%'
+      where ${NORMALIZED_NAME_SQL} like '%' || $1 || '%'
         and ($2::text is null or tc.level = $2)
       order by j.name
       limit 20`,
-    [q, level],
+    [normalizeName(q), level],
   );
-  res.json({ jurisdictions: rows });
+  res.json({ jurisdictions: rows.map((r) => ({ ...r, name: displayName(r.name) })) });
 });
 
 jurisdictionsRouter.get("/jurisdictions/:id", async (req, res) => {
