@@ -4,8 +4,10 @@ Persistent context for a coding agent working on the GovDex subsystem of this
 repo (`apps/web`, `apps/api`, `packages/db`, `packages/shared`, `ingestion/`).
 The rest of the repo (`client/`, `server/`, `reports/ny-transparency/`, the Ordinizer
 packages) is unrelated legacy/parallel functionality — see the top-level
-README/plan history for how GovDex is mounted alongside it (`/govdex` for the
-Next.js app, `/api/govdex` for the Express API, both in the same root
+README/plan history for how GovDex is mounted alongside it (`/<state>` — a two-letter
+state/DC/territory code like `/ny`, plus `/`, `/login`, `/scribe`, `/resolve`, and
+`/jurisdictions|bodies/<id>` permalinks — for the
+Next.js app, `/api/stack` for the Express API, both in the same root
 `server/index.ts` process).
 
 Invariants, carried over from `local/govdex/govdex-project.md` (the original

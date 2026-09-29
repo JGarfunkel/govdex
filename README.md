@@ -1,4 +1,4 @@
-# Civic Stack Index
+# GovDex
 
   a civic-transparency database, server, and crawler:
   who governs each jurisdiction, what bodies exist, who sits in which seat,
@@ -16,6 +16,15 @@ holds incremental changes applied on top of it via
 product functions, and the `US-NY` profile pack — via `npm run govdex:seed`.
 
 Local Postgres runs via `infra/docker-compose.yml` (`govdex:db:up`/`:down`).
+This repo is a **pnpm workspace** — install with `pnpm install` (a `preinstall`
+guard rejects plain `npm install`, which would wipe the `@govdex/*` symlinks).
+
+**Locale packs** (`packages/shared/src/conf/<state>.yaml`) hold each state's
+local vocabulary — concept names, executive titles, subdivision labels. Every
+state has one; only `ny.yaml` is backed by seeded jurisdiction data so far. It
+feeds the DB seed (`ingestion/tools/seed-profile.ts`) and the spider's
+chief-executive name matching. Unseeded states can still be reviewed at
+`/<state>/conf`.
 
 Design principles baked into the schema (see the header comment in
 `schema.sql` for the full list):
@@ -50,7 +59,9 @@ Design principles baked into the schema (see the header comment in
   components: `EntityPage.tsx` (a jurisdiction or body's public page),
   `ChannelGlyphs.tsx` / `CapabilityGlyphs.tsx` (the glyph rows described
   below), `ScribeForm.tsx` / `EditableGlyph.tsx` (in-place editing),
-  `SpiderCandidates.tsx` (triaging crawler output into real rows).
+  `SpiderCandidates.tsx` (triaging crawler output into real rows),
+  `Friction.tsx`, `ProductPicker.tsx`, and `UsMap.tsx` (the home-page map,
+  linking each state to its data or its `/<state>/conf` review page).
 
 Both share one Postgres pool and one root process — deliberately: GovDex is
 folded into the existing site rather than stood up as a separate service.
@@ -69,12 +80,26 @@ Two kinds of work live here:
   jurisdiction or body's website as a seed, follows links and classifies what
   it finds — social/community channels, sub-boards, meeting calendars,
   agenda/minutes pages, GovTech vendor products, and friction signals
-  (e.g. `robots.txt` excluding the crawler). It never asserts a fact
+  (e.g. `robots.txt` excluding the crawler), plus budget pages and civic-data
+  API endpoints. Fetched pages are cached on local disk and mirrored to
+  Cloudflare R2 (`packages/storage`; a no-op unless the `R2_*` env vars are
+  set). Detectors are largely YAML-driven (`ingestion/spider/*_detector.yaml`),
+  with alert/sign-up links and dead pages filtered out before classification.
+  It never asserts a fact
   directly into the real tables; it only ever writes to the staging table
   `candidate_links` (or `frictions`, `status='new'`), which a human scribe
   then promotes or rejects. `ingestion/spider/worker.ts` is a long-running
   process that drains `crawl_jobs`, queued whenever a scribe sets or changes
   a website through the web UI.
+
+- **`ingestion/tools/`: one-off operator scripts**, e.g. `add-body.ts`,
+  `inspect-jurisdiction.ts` (`govdex:inspect`), `seed-website.ts`,
+  `scan-vendors.ts`, `dedupe-bodies.ts` (merge duplicate bodies),
+  `legistar-bodies.ts` (pull a full board roster from Legistar's public API
+  as `source_cited`), `probe-civic-apis.ts` (find Socrata/ArcGIS/Legistar/
+  CKAN endpoints), `prune-dead-candidates.ts`, and the page-cache backfill /
+  `whois` tools. The crawl worker can also run in Docker
+  (`infra/crawl-worker.Dockerfile`, via `docker-compose.yml`).
 
 Run order for a fresh environment: `govdex:db:up` → `govdex:db:migrate` →
 `govdex:seed` → `govdex:t01`/`t01b`/`t01c`/`t01d`/`t02` → `govdex:t04` →
@@ -187,8 +212,8 @@ unchanged; "Resources" is the collection name, not a rename of each field.
 
 `candidate_links` is the spider's only write target for anything it thinks
 it found — a channel, a board, a district, a calendar, a vendor product, an
-agenda/minutes page, a directory/index page, or a budget page
-(`link_type`). Each row carries the page it was found on, the URL it
+agenda/minutes page, a directory/index page, a budget page, or a civic-data
+API (`link_type`, incl. `api` → `open_data_api_url` / `legistar_api_url`). Each row carries the page it was found on, the URL it
 points to, a guessed classification, and a `status`
 (`new`/`promoted`/`rejected`/`duplicate`). A scribe reviews `new` rows in
 `apps/web/app/scribe/candidates` and promotes the ones that check out into
@@ -202,8 +227,11 @@ Slack, …), tagged with a `product_functions` code (`agenda_minutes`,
 `website_cms`, `permitting`, `gis`, `notification`, `video_streaming`,
 `crm`). A **contract** is one purchase/license agreement, kept separate
 from adoptions because one contract (a BOCES co-op deal, a county-wide
-license) can cover many bodies. An **adoption** is the fact "this body uses
-this product" (optionally under a contract), one row per
+license) can cover many bodies. An **adoption** is the fact "this
+jurisdiction uses this product" (optionally under a contract) — the
+jurisdiction is what licenses the software, so `jurisdiction_id` is required
+and `body_id` is an optional narrowing for a body running its own tool. One
+row per `(jurisdiction_id, product_id)` when `body_id` is null, else per
 `(body_id, product_id)`. `packages/shared/src/govCapabilities.ts` rolls the
 granular `product_functions` codes up into seven resident-recognizable
 categories (web presence, participation, meeting process, service delivery,
