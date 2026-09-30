@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AuthProvider } from "../components/AuthProvider";
+import { SiteHeader } from "../components/SiteHeader";
 import "./globals.css";
 
 export const metadata = {
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
       </head>
       <body>
+        <SiteHeader />
         <AuthProvider localUnauthCanEdit={localUnauthCanEdit}>{children}</AuthProvider>
       </body>
     </html>

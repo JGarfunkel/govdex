@@ -30,7 +30,7 @@ main {
 /* Sticky entity header (breadcrumb, title, website) */
 .entity-header {
   position: sticky;
-  top: 0;
+  top: var(--site-header-h, 0px);
   z-index: 10;
   background: #fbfcfc;
   margin: -32px -20px 20px;
@@ -514,4 +514,61 @@ a.resource-chip:hover {
   color: var(--faint);
   background: transparent;
   border-style: dashed;
+}
+
+/* Site-wide floating header (SiteHeader) */
+:root {
+  --site-header-h: 44px;
+}
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: var(--site-header-h);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: rgba(251, 252, 252, 0.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line);
+}
+.site-header-brand {
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+}
+.site-menu {
+  position: relative;
+}
+.site-menu-button {
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.site-menu-list {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  min-width: 160px;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+}
+.site-menu-list a {
+  display: block;
+  padding: 8px 14px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.site-menu-list a:hover {
+  background: var(--accent-bg);
 }

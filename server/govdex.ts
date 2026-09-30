@@ -17,10 +17,11 @@ const US_STATE_CODES = new Set([
 ]);
 
 // GovDex routes that aren't scoped under a state code: the home page (US
-// map), auth, the scribe editing console, address resolution, and the
+// map), auth, the scribe editing console, address resolution, the /about
+// static documents (apps/web/content), and the
 // stable UUID-permalink fallback for entities without a slug yet (see
 // EntityList.tsx).
-const GOVDEX_UNSCOPED_PATH = /^\/(?:login|resolve|scribe)(?:\/.*)?$/;
+const GOVDEX_UNSCOPED_PATH = /^\/(?:login|resolve|scribe|about)(?:\/.*)?$/;
 const GOVDEX_ID_PERMALINK = /^\/(?:jurisdictions|bodies)\/[^/]+$/;
 
 function isGovdexPath(pathname: string): boolean {
@@ -59,9 +60,18 @@ export async function setupGovdex(app: Express, httpServer: Server, dev: boolean
   const requestHandler = nextApp.getRequestHandler();
 
   if (dev) {
+    // Next's request handler otherwise auto-attaches its own "upgrade" listener
+    // to the shared http server on the first request, and that listener
+    // socket.end()s any websocket whose path matches a Next route -- including
+    // Vite's HMR socket (ws://host/?token=...), which matches Next's "/" page.
+    // Vite's client then sees its socket die and reloads the page in a loop
+    // (visible on any path that falls through to the legacy Vite app, e.g. a
+    // 404). Claim the wiring ourselves and forward only Next's own sockets.
+    nextApp.didWebSocketSetup = true;
     const upgradeHandler = nextApp.getUpgradeHandler();
     httpServer.on("upgrade", (req, socket, head) => {
-      if (req.url?.startsWith("/_next/webpack-hmr")) {
+      // Next 16 serves HMR at /_next/hmr (older versions: /_next/webpack-hmr).
+      if (req.url?.startsWith("/_next/")) {
         upgradeHandler(req, socket, head);
       }
     });

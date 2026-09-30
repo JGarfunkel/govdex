@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>gov-guide</title>
+	<style>
+		/* Basic styles for readability */
+		body {
+			font-family: sans-serif;
+			max-width: 800px;
+			margin: 2em auto;
+			padding: 0 1em;
+			line-height: 1.6;
+		}
+		img { max-width: 100%; height: auto; }
+		pre { background-color: #f4f4f4; padding: 1em; overflow-x: auto; }
+		code { font-family: monospace; }
+	</style>
+</head>
+<body>
+	<h1>Guide for Governments</h1>
+<p>Most of the information residents need is already collected and already posted. The gap is between posted and findable, and six things commonly stand in the way. They are listed here from the most basic to the most ambitious. The first five make data that already exists easier to reach. The last publishes something most bodies track but never show.</p>
+<h2>1. Don’t block automated access</h2>
+<p>Bot rejection is the severe one. When a page blocks automated requests — through a CAPTCHA, an aggressive bot filter, or content that only appears after running JavaScript — it makes public data unusable at scale. A person can still read it one page at a time. A directory that has to keep it current for every town in the state cannot do that by hand. The data is public but effectively out of reach.</p>
+<p>This is worth separating from data that was never collected. In one respect blocking is worse: someone did the work of publishing, then removed the value of it by making the result un-reusable.</p>
+<p>What to do:</p>
+<ul>
+<li>Allow well-behaved automated requests to public pages. Set a rate limit if traffic is a concern, and stop short of blocking automated reads entirely.</li>
+<li>Don’t require JavaScript to display content that could be plain HTML.</li>
+<li>Don’t put a CAPTCHA in front of a public roster, calendar, or budget.</li>
+<li>If you have to limit traffic, publish a bulk export so nobody needs to crawl the site page by page.</li>
+</ul>
+<h2>2. Publish in a machine-readable format</h2>
+<p>A page can be reachable and still be useless to a machine when the data inside is in the wrong format. A budget posted as a scanned PDF is a picture of a table. A roster inside a Word file, or a list saved as an image to stop scrapers, has the same problem: a person can read it, and no tool can pull the data out without guesswork.</p>
+<p>Structured text is the goal. Where the thing has to be a document, make it text a machine can select and extract instead of an image of text.</p>
+<p>What to do:</p>
+<ul>
+<li>Publish tabular data as CSV, JSON, or an HTML table. Keep it out of PDFs and images.</li>
+<li>If a PDF is required, generate it from text so its contents can be selected and extracted, and avoid scanning paper.</li>
+<li>Don’t post rosters, budgets, or contact lists as images.</li>
+<li>Keep a structured version alongside any formatted one. A budget can have both a readable PDF and a CSV of the same numbers.</li>
+</ul>
+<h2>3. Offer an API or a structured export</h2>
+<p>The practical answer here is usually the vendor. Records and website vendors increasingly expose the data they hold through an API — Granicus’s <a href="https://webapi.legistar.com/">Legistar Web API</a> is one example. If your agendas, legislation, or budget already sit in a vendor system, the API may exist already and only need turning on.</p>
+<p>What to do:</p>
+<ul>
+<li>Ask your current vendor whether it offers a public API or a scheduled export, and turn it on.</li>
+<li>Make an open API or export a requirement the next time you procure or renew a system.</li>
+<li>Where no vendor covers a dataset, publish a scheduled CSV or JSON file at a stable URL yourself.</li>
+</ul>
+<h2>4. Give each resource a permanent page</h2>
+<p>Every standing resource — the budget, the meeting calendar, the committee list — should live at its own stable URL. A resident should be able to bookmark that address and share it, and a tool should be able to check the same address next month and find the current version. The address stays the same as the content behind it changes.</p>
+<p>Common failures:</p>
+<ul>
+<li>The committee list is reachable only by clicking through a menu and has no address of its own.</li>
+<li>The committee list is broken up into arbitrary alphabetical buckets (A-C, D-P, R-Z).</li>
+<li>The budget gets a new link each year; there is no permanent page <code>/budget</code> that links to the current budget (and past and future ones).</li>
+<li>The document lives inside a portal that hands out a temporary link.</li>
+</ul>
+<p>What to do:</p>
+<ul>
+<li>One durable URL per resource. When the content changes, update the page and keep the address.</li>
+<li>Make the address human-readable where you can: <code>/budget</code>, <code>/calendar</code>, <code>/committees</code>.</li>
+<li>Show when the page was last updated, so a resident can judge whether it is current and a tool can tell when it changed.</li>
+<li>If a resource lives only inside a third-party portal, publish a permanent page on your own site that links into it.</li>
+</ul>
+<h2>5. Make it findable by search</h2>
+<p>A permanent page only helps if a resident can find it. Most residents look for a committee or a document by typing its name into a search engine. A government site’s own menus are the last place they look. A page that search engines can’t index might as well not be public, because the people searching for it never arrive.</p>
+<p>Three things commonly hide a public page from search: a <code>noindex</code> tag, a <code>robots.txt</code> rule that blocks crawlers, and content that lives only behind a site’s own search box with no page of its own to link to.</p>
+<p>What to do:</p>
+<ul>
+<li>Let search engines index public pages. Remove <code>noindex</code> and clear the <code>robots.txt</code> rules that block content meant to be found.</li>
+<li>Give every resource a browsable, linkable page, not only a result inside a search box.</li>
+<li>Write plain page titles and headings that match what a resident would type: the committee’s name, the year of the budget, the word “agenda.”</li>
+<li>Keep a simple index or sitemap listing the permanent pages, so residents and search engines can both discover them.</li>
+</ul>
+<h2>6. Publish the state of the work, not just the meetings</h2>
+<p>Open-meetings law requires agendas and minutes, and publishing them counts as openness. What it produces is a snapshot: a fixed record of what a body discussed on a given day. Snapshots matter. Minutes, agendas, and adopted budgets are the legal record, they have to be preserved exactly as they were, and a resident checking what was decided last March needs them intact.</p>
+<p>Someone who wants the status of a sidewalk repair, a grant application, or a zoning review should not have to read six months of minutes to piece it together. The question they actually ask is simpler: what is this body working on, and where does each thing stand?</p>
+<p>Residents want the stateful record far more often than the snapshot. They reach for the archive occasionally, to confirm what was decided. They rely on the current status all the time. Bodies publish the archive because the law requires it and leave the status unpublished, so the thing residents use most is the thing they can’t get.</p>
+<p>Software teams answered this years ago. Every open item has a page with a title, an owner, a status, and a history, and anyone can see what is in progress, what is stuck, and what is finished. A public body’s work fits the same shape: projects, issues, and tasks, each with a current status.</p>
+<p>The answer here is usually the same as section 3: a govtech vendor. The status of permits, cases, and legislation often already lives inside a system the body runs, so the work is exposing what that system holds rather than building something new. Where no such system is in place, even a public list with one row per open item and a status column beats leaving residents to reconstruct it from minutes.</p>
+
+</body>
+</html>
