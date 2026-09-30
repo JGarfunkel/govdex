@@ -28,7 +28,7 @@ substitutions:
   _NEXT_PUBLIC_FIREBASE_APP_ID: ""
   # Runtime secrets mounted as env vars: ENV=secret:version, comma-separated.
   _SECRETS: >-
-    DATABASE_URL=govdex-database-url:latest,
+    DATABASE_URL=DATABASE_URL:latest,
     # FIREBASE_ADMIN_PROJECT_ID=govdex-firebase-admin-project-id:latest,
     # FIREBASE_ADMIN_CLIENT_EMAIL=govdex-firebase-admin-client-email:latest,
     # FIREBASE_ADMIN_PRIVATE_KEY=govdex-firebase-admin-private-key:latest,
