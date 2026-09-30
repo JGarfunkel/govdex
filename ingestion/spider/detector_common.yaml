@@ -32,6 +32,14 @@ reject:
   - "Job Board"
   - "(Sunset"
   - "Friends of the"
+  - "View Current"
+  - "Form"
+  - "Forms"
+  - "Authority"
+  - "Appointments"
+  - "About"
+  - "FAQ"
+  - "History of"
 
 # Substrings (case-insensitive) that mark a link's URL itself as the wrong
 # kind of page, independent of anchor text — checked against the full URL,
