@@ -26,7 +26,8 @@ build spec) and enforced by `packages/db/schema.sql`:
   "checked, none" a deliberate extra click, never a default. The spider
   (`ingestion/spider/`) must never write `status='absent'` itself.
 - Scribe edit scope is `scribe_editable_jurisdictions()`: assigned,
-  within-children, and overlaps. It never reaches upward. Do not widen it in
+  all `within` descendants (recursive), and overlaps/coextensive of the
+  assigned jurisdiction or any descendant (one hop). It never reaches upward. Do not widen it in
   app code.
 - Ingestion inserts must explicitly set `origin = 'import'` — the schema
   column default is `'manual'` (for hand/UI-created rows), so ingestion has to

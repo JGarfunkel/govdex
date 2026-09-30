@@ -1,14 +1,11 @@
 import Link from "next/link";
 import { US_STATE_PATHS } from "../lib/usStatePaths";
 
-// State -> slug for jurisdictions that actually resolve today (see
-// apps/api/src/lib/geoPayload.ts's "NY-only today" note) — these get the
-// full entity page. Every other state that has a config YAML (see
-// packages/shared/src/conf/*.yaml, listed via GET /api/stack/conf) links to
-// its /conf review page instead. A state with neither renders unlinked.
-const LIVE_STATES: Record<string, string> = {
-  NY: "ny",
-};
+// `liveStates` maps state code -> slug for states that have loaded data and a
+// slug (GET /api/stack/geo) — these get the full entity page. Every other
+// state that has a config YAML (see packages/shared/src/conf/*.yaml, listed
+// via GET /api/stack/conf) links to its /conf review page instead. A state
+// with neither renders unlinked.
 
 // DC isn't a state, so it isn't in US_STATE_PATHS — same small marker
 // (a sliver of the district plus a dot) react-usa-map draws for it, at the
@@ -16,7 +13,7 @@ const LIVE_STATES: Record<string, string> = {
 // a single state path.
 const DC_PATH = "M801.8,253.8 l-1.1-1.6 -1-0.8 1.1-1.6 2.2,1.5z";
 
-export function UsMap({ configuredStates }: { configuredStates: string[] }) {
+export function UsMap({ configuredStates, liveStates }: { configuredStates: string[]; liveStates: Record<string, string> }) {
   const configured = new Set(configuredStates);
 
   return (
@@ -24,7 +21,7 @@ export function UsMap({ configuredStates }: { configuredStates: string[] }) {
       <title id="us-map-title">United States — click a state to view it</title>
       <g className="us-map-states">
         {Object.entries(US_STATE_PATHS).map(([code, { name, d }]) => {
-          const slug = LIVE_STATES[code];
+          const slug = liveStates[code];
           const path = <path d={d} />;
 
           if (slug) {

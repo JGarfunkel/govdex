@@ -10,16 +10,16 @@
 // appending the entity's local type name (-town, -village, -city) rather
 // than a hardcoded name list, so any future collision resolves the same way.
 //
-// The numbered AD/SD/CD/JD jurisdictions (t01) never got a `within` relation
-// to the state — t02 only derives relations from the county/city/town/
-// village locality dataset. This script backfills that relation first so
-// they show up under the state as a "legislative districts" group.
+// District jurisdictions (NY's t01, every other state's load-state) never get
+// a `within` relation to the state from their own loaders. This script
+// backfills it first, for every loaded state, so they show up under the state
+// as a "legislative districts" group. Run it after each state load — a state
+// with no slug returns 404 from /api/stack/geo/<state>, and the home map
+// treats a state as live only once it has one.
 import "dotenv/config";
 import type { Pool } from "pg";
 import { getPool } from "@govdex/db";
 import { upsertRelation } from "../lib/upsert";
-
-const DISTRICT_SCHEMES = ["ny_ad", "ny_sd", "ny_cd", "ny_jd"];
 
 function slugify(s: string): string {
   return s
@@ -31,21 +31,26 @@ function slugify(s: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-async function backfillDistrictRelations(pool: Pool) {
-  const { rows: stateRows } = await pool.query<{ id: string }>(
-    `select jurisdiction_id as id from jurisdiction_identifiers where scheme = 'usps_state' and value = 'NY'`,
-  );
-  const stateId = stateRows[0]?.id;
-  if (!stateId) throw new Error("NY state jurisdiction not found — run govdex:t01 first.");
+// Numbered/named legislative and judicial districts (t01, load-state) never get
+// a `within` relation to the state from their own loaders, so this backfills it
+// for every state at once: each district is tied to the state jurisdiction that
+// shares its profile.
+const DISTRICT_CONCEPTS = ["state_house_district", "state_senate_district", "us_house_district", "judicial_region"];
 
-  const { rows: districts } = await pool.query<{ jurisdiction_id: string }>(
-    `select jurisdiction_id from jurisdiction_identifiers where scheme = any($1)`,
-    [DISTRICT_SCHEMES],
+async function backfillDistrictRelations(pool: Pool) {
+  const { rows } = await pool.query<{ district_id: string; state_id: string }>(
+    `select d.id as district_id, s.id as state_id
+       from jurisdictions d
+       join type_concepts dc on dc.id = d.concept_id
+       join jurisdictions s on s.profile_id = d.profile_id
+       join type_concepts sc on sc.id = s.concept_id and sc.code = 'state'
+      where dc.code = any($1)`,
+    [DISTRICT_CONCEPTS],
   );
-  for (const d of districts) {
-    await upsertRelation(pool, d.jurisdiction_id, stateId, "within");
+  for (const r of rows) {
+    await upsertRelation(pool, r.district_id, r.state_id, "within");
   }
-  console.log(`  backfilled ${districts.length} legislative-district -> state relations`);
+  console.log(`  backfilled ${rows.length} legislative-district -> state relations`);
 }
 
 async function assignStateSlugs(pool: Pool) {

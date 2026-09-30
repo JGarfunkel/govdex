@@ -32,6 +32,7 @@
     "govdex:t01b": "npx tsx ingestion/t01b-school-districts/run.ts",
     "govdex:t01c": "npx tsx ingestion/t01c-boces/run.ts",
     "govdex:t02": "npx tsx ingestion/t02-relations/run.ts",
+    "govdex:load-state": "npx tsx ingestion/load-state/run.ts",
     "govdex:t01d:nyc": "npx tsx ingestion/t01d-nyc/run.ts",
     "govdex:t04": "npx tsx ingestion/t04-bodies/run.ts",
     "govdex:t06:slugs": "npx tsx ingestion/t06-slugs/run.ts",

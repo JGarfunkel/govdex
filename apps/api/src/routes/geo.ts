@@ -9,6 +9,21 @@ import { findChildJurisdictionBySlug, findStateJurisdictionBySlug, loadEntityPay
 // state's own children, and "rye-town" only among Westchester's.
 export const geoRouter = Router();
 
+// Which states are live: a state jurisdiction exists AND t06 has given it a
+// slug. This is what the home map reads, so loading a state + running t06 is
+// the whole "go live" step — no code change per state.
+geoRouter.get("/geo", async (_req, res) => {
+  const { rows } = await getPool().query<{ code: string; name: string; slug: string }>(
+    `select p.code, j.name, j.attributes->>'slug' as slug
+       from jurisdictions j
+       join type_concepts tc on tc.id = j.concept_id
+       join profiles p on p.id = j.profile_id
+      where tc.code = 'state' and j.attributes->>'slug' is not null
+      order by j.name`,
+  );
+  res.json({ states: rows.map((r) => ({ code: r.code.replace(/^US-/, ""), name: r.name, slug: r.slug })) });
+});
+
 geoRouter.get("/geo/:state", async (req, res) => {
   const pool = getPool();
   const stateId = await findStateJurisdictionBySlug(pool, req.params.state);

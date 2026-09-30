@@ -241,9 +241,9 @@ back office, transparency, oversight) shown as glyphs on `EntityPage`.
 
 - A **scribe** is a volunteer editor `scribe_assignments` links to a
   jurisdiction, with `scope` = `lead` or `contributor`. Editable scope
-  extends from that assignment one hop outward — children (`within`) and
-  overlapping/coextensive jurisdictions — never upward, never transitively
-  further.
+  cascades down from that assignment — every descendant via `within`
+  (state → county → town → village), plus overlapping/coextensive districts
+  of the assignment or any descendant (one hop). Never upward.
 - Every substantive edit lands in `revisions` (append-only: table, record,
   op, diff, who, when, status) — this is history, rollback, and the
   moderation queue in one table. A contributor's edit lands `proposed`; a

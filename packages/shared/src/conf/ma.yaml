@@ -44,9 +44,14 @@ concepts:
     has_active_government: true
     default_body_name: City Council
     executive_title: Mayor
+    # Default is strong-mayor (44 of the 59 cities); the 15 council-manager
+    # cities are listed below. Both lists come from the MMA "Forms of Municipal
+    # Government" chart (see sources.governance) — Cambridge, Lowell and Worcester
+    # have a mayor, but the mayor is ceremonial and the city manager is the
+    # chief executive, so they count as council-manager here.
     governance: [strong-mayor, council-manager]
     governance_exceptions:
-      strong-mayor: [Boston]
+      council-manager: [Amherst, Barnstable, Bridgewater, Cambridge, Chelsea, East Longmeadow, Franklin, Lowell, North Attleborough, Palmer, Randolph, Southbridge, Watertown, Winthrop, Worcester]
     subdivisions: false
 
   # governed by Town Meeting (the legislative body itself) with a Select
@@ -97,8 +102,9 @@ concepts:
 
 governance:
   # a separately elected mayor with real executive power distinct from the
-  # council — Boston is the confirmed MA example; other MA cities likely use
-  # this form too but aren't confirmed by name yet
+  # council — the 44 cities whose chief municipal official is "Mayor" in the
+  # MMA chart. `legislative_committees: true` is assumed for these councils,
+  # not yet checked city by city.
   strong-mayor:
     legislative_committees: true
     committees_label: Committees
@@ -107,61 +113,262 @@ governance:
     legislative_committees: false
     legislative_districts: false
 
+  # Town Meeting is the legislative body, but it sits a few times a year and
+  # the Select Board runs things in between; it has no standing legislative
+  # committees of its own (advisory/finance committees are appointed, not
+  # legislative), so there is nothing to model as a committee structure.
   town-meeting:
     legislative_committees: false
     legislative_districts: false
 
-# Documentary only (see profile.ts's StateProfile.sources comment and
-# ny.yaml's sources block for the field shape). Verified live against the
-# actual endpoints, not recalled from memory.
+# Documentary + machine-readable (see profile.ts's StateProfile.sources comment
+# and ny.yaml's sources block for the original prose field shape). Verified
+# live against the actual endpoints on 2026-09-30, not recalled from memory.
+#
+# Each source carries prose (`provider`, `note`) plus a structured loader spec
+# so one generic ingestion script can drive it. Conventions:
+#   kind            arcgis | html_scrape | static | pending_source
+#   concept         type_concepts.code for created rows; `concept_from` picks it
+#                   per row from a field instead
+#   name            { field, transform } — transform: title_case (see
+#                   lowercase_words) | as_is
+#   identifiers     [{ scheme, field }] — first is the match key (see AGENTS.md:
+#                   match on jurisdiction_identifiers, never names)
+#   attributes      { attribute_key: SOURCE_FIELD | { field, as } }
+#   relations       what t02 derives; `via` names the join
 sources:
+  state:
+    kind: static
+    concept: state
+    name: Massachusetts
+    identifiers:
+      - { scheme: usps_state, value: MA }
+    fips: "25"
+
   counties:
+    kind: arcgis
     url: https://services1.arcgis.com/hGdibHYSPO59RG1h/arcgis/rest/services/CountiesSurveyGenCoast_gdb/FeatureServer/1
     provider: MassGIS
     type: ArcGIS REST FeatureServer (layer 1 is the polygon layer; layer 0
       is a line-only outline layer — skip it)
-    field_mapping:
-      COUNTY: name
-      FIPS_STCO: attributes.county_fips
-    note: verified 14 counties, exact match.
+    concept: county
+    name: { field: COUNTY, transform: title_case } # source is upper-case, e.g. "BARNSTABLE"
+    identifiers:
+      - { scheme: fips, field: FIPS_STCO } # 5-digit, e.g. 25001 (may arrive as a number — stringify)
+    attributes:
+      county_fips: { field: FIPS_STCO, as: string } # same 5-digit string form municipalities use below
+    relations:
+      - { relation: within, to: state }
+    expected_count: 14
+    note: verified 14 counties, exact match. The layer has no other useful
+      fields (OBJECTID, GlobalID, shape metrics only). County jurisdictions
+      exist for grouping/resolution only — has_active_government is false.
 
   municipalities:
+    kind: arcgis
     url: https://arcgisserver.digital.mass.gov/arcgisserver/rest/services/AGOL/Census2020_Towns/FeatureServer/2
     provider: MassGIS, "Census2020_Towns" (layer 2 = polygon; layer 1 = lines)
     type: ArcGIS REST FeatureServer
-    field_mapping:
-      NAMELSAD20 (or TOWN20): name
-      COUNTYFP20 (or COUNTY20): parent county
-      GEOID20: jurisdiction_identifiers (scheme "census_geoid")
-      POP2020: attributes.population_estimate (see population below)
+    # TYPE is the source's "Form of Govt." field. Verified distribution over
+    # all 351 rows: T=293, C=45, TC=13 (13 cities that keep "Town" in their
+    # official name). LSAD20 agrees (43=town, 25=city) but can't see the TC
+    # case, so TYPE is the field to use.
+    concept_from:
+      field: TYPE
+      map: { T: town, C: city, TC: city }
+    name:
+      field: TOWN20 # upper-case, e.g. "MANCHESTER-BY-THE-SEA"
+      transform: title_case
+      lowercase_words: [by, the, of] # keeps "Manchester-by-the-Sea"; spot-check other names after the first load
+    identifiers:
+      - { scheme: census_geoid, field: GEOID20 } # 10 chars, unique across all 351
+      - { scheme: gnis, field: COUSUBNS20 } # 8-digit ANSI/GNIS feature code
+      - { scheme: ma_town_id, field: TOWN_ID } # MassGIS official city/town ID
+    attributes:
+      county_fips: { field: FIPS_STCO20, as: string } # integer in source (25003) — stringify to match counties
+      state_fips: STATEFP20
+      cousub_fips: COUSUBFP20
+      form_of_govt_code: TYPE # raw T / C / TC, kept for the "Town"-named cities
+      population_estimate: POP2020 # Census 2020 count, despite the name (see population below)
+      area_sq_miles: SQ_MILES
+    # City vs. town is not needed to tell municipalities apart: all 351 TOWN20
+    # names are distinct (unlike NY), so the loader can key on census_geoid and
+    # name freely. TYPE is still used for `concept`, but it is imperfect — it
+    # marks 58 cities, while the MMA chart (sources.governance) lists 59 (East
+    # Longmeadow is TYPE=T here). Take governance, including city-ness, from
+    # sources.governance and treat TYPE as a fallback.
+    relations:
+      - { relation: within, to: county, via: attributes.county_fips }
+    websites:
+      kind: html_scrape
+      url: https://www.mma.org/members/member-communities/city-and-town-websites/
+      provider: Massachusetts Municipal Association — member communities directory
+      # Structure (verified): the page holds 23 <div class="panel"> blocks (an
+      # "All" tab plus A–Z tabs); the FIRST one has every entry and the rest
+      # repeat it — parse only the first. Each entry is
+      #   <a href="URL" ...><strong> Name </strong> &#8211; display-host</a>
+      # Take the href (not the display host, which drops scheme/path).
+      # Plain fetch works with a normal User-Agent; curl with a browser UA
+      # got a Cloudflare challenge.
+      # container: only the FIRST match is used. rows: selector inside it. Each field is a selector, optionally "sel@attr" (empty sel = the row itself).
+      entry: { container: "div.panel", rows: "a", fields: { name: "strong", website: "@href" } }
+      match:
+        against: name # TOWN20
+        normalize: lowercase, drop every non-letter character
+        # Verified: all 347 MMA entries match a GIS municipality after
+        # normalizing, with no duplicates and no unmatched MMA names.
+      writes: jurisdictions.website
+      expected_entries: 347
+      # In the GIS layer but not in the MMA list, so they get no website from
+      # this source (leave website null — do NOT treat blank as "none exists"):
+      known_missing: [Hancock, Savoy, Monroe, Gosnold]
+      note: the page says 351 municipalities are MMA members, but the list
+        itself has 347 entries — the four above are missing. Re-check the list
+        against the GIS layer on every run and report names in either
+        direction rather than failing.
+    expected_count: 351
+    # GIS TYPE=T but the MMA chart prints it city-form (see sources.governance).
+    concept_overrides:
+      East Longmeadow: city
     note: verified 351 records, matches MA's known total. Updated Feb 2026
-      per metadata.
+      per metadata. FUNCSTAT20 only takes A/F and is not needed.
+
+  governance:
+    kind: pdf_table
+    url: https://www.cambridgema.gov/-/media/Files/charterreviewcommittee/charterresources/massachusettscharterresources/maformsofmunicipalgovernment202021.pdf
+    provider: Massachusetts Municipal Association, "Massachusetts Municipal Directory — Forms of Municipal Government" (annual MMA survey of every city and town); this copy is the 2020–21 edition hosted by the City of Cambridge
+    # Columns per municipality: Community (+ charter year, + Plan A–F letter for
+    # cities using a Chapter 43 model charter), Chief Municipal Official,
+    # Policy Board (Select Board / Selectmen / Council + size), Legislative
+    # Body (OTM = open town meeting, RTM = representative town meeting).
+    # City-form communities are printed in ALL CAPS.
+    # Chief official codes: Mayor, Mayor-Manager, Manager (cities); TM = Town
+    # MANAGER (not town meeting), TA = town administrator, TC = coordinator,
+    # ES / AC / CAO / ED / ExA / GM / MuA = other administrative titles.
+    # Extraction (verified): `pdftotext -raw` gives one municipality per line;
+    # the default -layout mode interleaves the two columns, so avoid it. Parse
+    # each line as  Name [(year)] [(plan)]  ChiefCode  Body.
+    # Verified counts for the 59 ALL-CAPS cities: Mayor 44, Mayor-Manager 3
+    # (Cambridge, Lowell, Worcester), Manager 1 (Chelsea), town-manager or
+    # administrator 11 — matching the chart's own totals (47 mayors incl. 3
+    # mayor-manager, 12 manager-council). The town rows also parse, but 3
+    # extra junk rows appear and a few small towns list no chief official, so
+    # only use the town rows after a per-row check against the GIS names.
+    classify:
+      strong-mayor: chief = Mayor # 44 cities
+      council-manager: chief in [Manager, Mayor-Manager, TM, TA] among city-form rows # 15 cities; the 3 Mayor-Manager mayors are ceremonial
+      town-meeting: every non-city-form row; legislative body is OTM (259) or RTM (33)
+    attributes:
+      chief_official_code: the chief-official column
+      legislative_body: the legislative-body column (OTM / RTM / Council)
+      model_charter_plan: the Plan A–F letter, where present
+    note: a snapshot (2020–21 vintage), not a live feed — governance changes
+      rarely, so load it once into the YAML lists above and re-check against
+      the current MMA directory before trusting it for a change (e.g. a city
+      adopting a new charter). MMA says 14 communities with a city structure
+      still call themselves towns; the PDF prints all 14 in city-form caps,
+      while GIS TYPE=TC covers only 13 (East Longmeadow is the gap above).
 
   school_districts:
+    kind: arcgis
     url: https://arcgisserver.digital.mass.gov/arcgisserver/rest/services/AGOL/Public_School_Districts/FeatureServer/0
     provider: same MassGIS host
     type: ArcGIS REST FeatureServer
-    field_mapping:
-      DISTRICT_NAME: name
-      ORG4CODE / ORG8CODE: jurisdiction_identifiers (scheme "ma_orgcode")
-      DISTRICT_TYPE: concept_id (e.g. ReglK12)
-      SUPERINTENDENCY_UNION: parent grouping (a few districts share a
-        superintendent across towns)
-    note: verified 213 records. Metadata says the geometry vintage is "as
+    concept: school_district # all three DISTRICT_TYPE values below are school_district
+    name: { field: DISTRICT_NAME, transform: as_is } # already mixed-case, e.g. "Central Berkshire"
+    identifiers:
+      - { scheme: ma_orgcode, field: ORG8CODE } # 8-digit, unique across all 213; ORG4CODE is its first 4 digits
+    attributes:
+      ma_org4code: ORG4CODE
+      district_type: DISTRICT_TYPE
+      tuition: TUITION # Y/N
+      tuition_grades: TUITION_GRADES
+      tuition_to: TUITION_TO
+      start_grade: START_GRADE
+      end_grade: END_GRADE
+      superintendency_union: SUPERINTENDENCY_UNION # "Union 43" / "Union 60" / "Union 70"; null otherwise
+      member_towns: { field: MEMBERLIST, as: comma_list } # regional districts only
+    # Verified DISTRICT_TYPE distribution (213 total):
+    # MEMBERLIST / district names that differ from the municipality's own name:
+    name_aliases:
+      Manchester: Manchester-by-the-Sea # Manchester Essex regional district
+    district_types:
+      MuniK12: # 172 — a single municipality's own district
+        meaning: one municipality; MEMBERLIST is always null
+        relation: coextensive # with the municipality of the same name
+      ReglK12: # 37 — a regional district formed by several towns
+        meaning: member towns are listed in MEMBERLIST, e.g. "Groton, Dunstable"
+        relation: within # each municipality named in members_from is within the district
+        members_from: member_towns
+        coverage: full
+      TuitionK12: # 4 — a town with no schools that tuitions its students elsewhere
+        meaning: TUITION=Y; TUITION_TO/TUITION_GRADES may say where
+        relation: coextensive # with the municipality of the same name
+    # A town can belong to more than one of these at once (e.g. its own
+    # K-6 district plus a regional 7-12 district), so never assume one
+    # district per municipality.
+    # No crosswalk ID exists between ORG codes and GEOID/TOWN_ID in this
+    # layer, so MuniK12/TuitionK12 -> municipality and MEMBERLIST ->
+    # municipality can only be joined by normalized NAME, scoped to
+    # municipalities. That is a deliberate exception to "match on identifiers,
+    # never names" — have the relations step log every unmatched name rather
+    # than guess. Better: t03's PostGIS boundaries make this an overlap query
+    # and retire the name join.
+    expected_count: 213
+    note: verified 213 records (MuniK12 172, ReglK12 37, TuitionK12 4). Does
+      NOT include vocational/technical, charter, or collaborative entities —
+      K-12 public districts only. Metadata says the geometry vintage is "as
       of Dec 2, 2014" — the service itself is live, but treat currency as
       needing a check before production use.
 
   educational_region:
-    status: no API or GIS layer — directory only
+    kind: static # no API or GIS layer — directory only
+    concept: educational_region
+    directory_url: https://www.moecnet.org/collaboratives/
+    # Short names exactly as listed on the directory. Full legal names and each
+    # collaborative's own website still need to be collected (scribe or a
+    # one-time scrape of the directory's detail pages). No stable ID is
+    # published, so the identifier is a slug we mint: scheme "ma_collab_slug".
+    identifiers:
+      - { scheme: ma_collab_slug, derive: slug_of_name }
+    entries: [ACCEPT, Assabet Valley, Bi-County, CASE, CAPS, Cape Cod, Central Mass, CES, Crest, Keystone, LABBB, LPVEC, North River, Northshore, Pilgrim Area, READS, SEEM, Shore, South Coast, South Shore, SMEC, SWCEC, TEC, Valley]
+    expected_entries: 24
     note: 24 Educational Collaboratives confirmed live via
-      moecnet.org/collaboratives/ (ACCEPT, Assabet Valley, Bi-County, CASE,
-      CAPS, Cape Cod, Central Mass, CES, Crest, Keystone, LABBB, LPVEC,
-      North River, Northshore, Pilgrim Area, READS, SEEM, Shore, South
-      Coast, South Shore, SMEC, SWCEC, TEC, Valley) — HTML directory only,
-      no downloadable dataset.
+      moecnet.org/collaboratives/ — HTML directory only, no downloadable
+      dataset. Membership (which districts belong to which collaborative) is
+      not in any source checked so far.
+
+  numbered_districts:
+    # MA differs from NY here: House and Senate districts are NAMED, not
+    # numbered (e.g. "1st Suffolk"), so the `district_number` series NY's t01
+    # generates does not apply to them. Only congressional districts are plain
+    # numbers. Counts are the current post-2020 apportionment; the named ones
+    # need a source for their official names before they can be loaded — none
+    # has been verified yet.
+    us_house_district:
+      kind: static
+      concept: us_house_district
+      identifiers: [{ scheme: ma_cd, derive: number }]
+      count: 9
+      label: "Congressional District {n}"
+      attributes: { district_number: n }
+    state_house_district:
+      kind: pending_source
+      concept: state_house_district
+      identifiers: [{ scheme: ma_hd, derive: official_name }]
+      count: 160
+      naming: named
+    state_senate_district:
+      kind: pending_source
+      concept: state_senate_district
+      identifiers: [{ scheme: ma_sd, derive: official_name }]
+      count: 40
+      naming: named
+    judicial_region:
+      status: omitted # see the note at the top of this file
 
   population:
-    status: not yet ingested
+    status: municipality POP2020 captured above; nothing for other concepts
     recommended_source: US Census Bureau Population Estimates Program (PEP) —
       https://api.census.gov/data/{year}/pep/population — joins on the county
       FIPS from the counties source above. The municipalities source's own

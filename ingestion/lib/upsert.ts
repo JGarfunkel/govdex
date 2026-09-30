@@ -34,7 +34,9 @@ export async function upsertJurisdictionByIdentifier(client: Queryable, params: 
     const { id, origin } = existing.rows[0];
     if (origin === "import") {
       await client.query(
-        `update jurisdictions set name = $2, website = $3, attributes = attributes || $4::jsonb
+        // coalesce: a source that carries no website (MassGIS, say) must not
+        // null out one a separate websites step or the spider already set.
+        `update jurisdictions set name = $2, website = coalesce($3, website), attributes = attributes || $4::jsonb
           where id = $1 and origin = 'import'`,
         [id, params.name, params.website ?? null, JSON.stringify(params.attributes ?? {})],
       );

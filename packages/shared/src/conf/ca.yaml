@@ -95,60 +95,190 @@ governance:
     legislative_committees: true
     committees_label: Committees
 
-# Documentary only (see profile.ts's StateProfile.sources comment and
-# ny.yaml's sources block for the field shape). Verified live against the
-# actual endpoints, not recalled from memory.
+# Documentary + machine-readable loader spec — the conventions are documented
+# in ma.yaml's sources header (kind, concept, name, identifiers, attributes,
+# relations) and read by ingestion/load-state/run.ts. CA adds a few keys:
+#   kind: tsv         tab-separated download; `filter` keeps matching rows and
+#                     `null_values` marks blank cells (CDE's "No Data")
+#   dedupe_on         keep the first row per value of this source field
+#   name_overrides    the source's name is a short/wrong form of the real one
+#   website           a url column on the source itself
+#   FieldRef transforms: strip_suffix, prefix
+# Verified live against the actual endpoints on 2026-09-30.
 sources:
+  state:
+    kind: static
+    concept: state
+    name: California
+    identifiers:
+      - { scheme: usps_state, value: CA }
+    fips: "06"
+
   counties:
+    kind: arcgis
     url: https://services.gis.ca.gov/arcgis/rest/services/Boundaries/CA_Counties/MapServer/0
     provider: CA Department of Finance, via the CA State Geoportal ("California County Boundaries and Identifiers")
-    type: ArcGIS REST FeatureLayer (MapServer) — query with /query?where=1=1&outFields=*&f=json
-    field_mapping:
-      County: name
-      FIPS: attributes.county_fips
-      Population: a 2014 DOF estimate — see `population` below for a fresher source
-    note: verified 58 counties via returnCountOnly. No website field on this layer.
+    type: ArcGIS REST FeatureLayer (MapServer)
+    concept: county
+    name: { field: County, transform: as_is } # "Mono", not "Mono County"
+    identifiers:
+      - { scheme: fips, field: { field: FIPS, prefix: "06" } } # 3-digit in the layer ("051"); prefixed to the 5-digit form
+    attributes:
+      county_fips: { field: FIPS, prefix: "06" } # same 5-digit form MA uses
+      county_name: County # join key: cities and school districts name their county
+    relations:
+      - { relation: within, to: state }
+    expected_count: 58
+    note: verified 58 counties. `Population` is a 2014 CA DOF estimate (see
+      `population` below); the layer has no website field.
 
   municipalities:
+    kind: arcgis
     url: https://services3.arcgis.com/uknczv4rpevve42E/arcgis/rest/services/California_Cities_and_Identifiers_Blue_Version_view/FeatureServer/2
     provider: CA State Geoportal, "California City Boundaries and Identifiers"
       (source data from the CA Dept of Tax and Fee Administration, joined to
       Census/GNIS identifiers)
     type: ArcGIS FeatureServer
-    field_mapping:
-      CDTFA_COPRI: jurisdiction_identifiers (scheme "cdtfa")
-      CDTFA_CITY: name
-      CDTFA_COUNTY: parent county
-      GNIS_ID: jurisdiction_identifiers (scheme "gnis")
-      CENSUS_GEOID: jurisdiction_identifiers (scheme "census_geoid")
-      PRIMARY_DOMAIN: website (sparsely populated — mostly null)
-    note: 483 distinct cities (549 raw features — some have multipart/exclave
-      polygons, e.g. islands, counted separately; dedupe on CDTFA_CITY).
+    concept: city # all of them: "town" is only a name in CA (see profile.config.villages_exist)
+    dedupe_on: CDTFA_COPRI # 549 features -> 483 cities; split polygons share the same ids
+    name: { field: CDTFA_CITY, transform: as_is }
+    # The layer's short names for two cities; the League directory (and the
+    # cities themselves) use the full ones.
+    name_overrides:
+      Angels: Angels Camp
+      California: California City
+    identifiers:
+      - { scheme: cdtfa, field: CDTFA_COPRI } # complete, unique
+      - { scheme: gnis, field: GNIS_ID }
+      - { scheme: census_geoid, field: CENSUS_GEOID } # null for Mountain House only
+    attributes:
+      county_name: { field: CDTFA_COUNTY, strip_suffix: " County" } # matches counties.county_name for all 55 counties that have cities
+      census_place_type: CENSUS_PLACE_TYPE # City (461) / Town (21) — a label, not a legal distinction
+      area_sq_miles: AREA_SQMI
+    relations:
+      - { relation: within, to: county, via: attributes.county_name }
+    expected_count: 549
+    websites:
+      kind: html_scrape
+      url: https://my.calcities.org/Directories/City-Directory
+      provider: League of California Cities — City Directory
+      # Structure (verified): one server-rendered Telerik RadGrid; all 483 rows
+      # are in the first response (no paging or postback needed), plain fetch
+      # with a normal User-Agent works. Rows are <tr class="rgRow"> /
+      # <tr class="rgAltRow">; cells in order: City, Address, Incorporated
+      # (mm/dd/yyyy, sometimes blank), Type, Population, Phone, Website
+      # (<a href="...">; take the href).
+      entry:
+        rows: "tr.rgRow, tr.rgAltRow"
+        fields:
+          name: "td:nth-child(1)"
+          incorporated: { select: "td:nth-child(3)", as: date_us }
+          city_type: "td:nth-child(4)"
+          population_estimate: { select: "td:nth-child(5)", as: number }
+          website: "td:nth-child(7) a@href"
+      match:
+        normalize: lowercase, strip diacritics, drop every non-letter character
+        # With name_overrides above, only this variant still differs:
+        aliases: { Mt. Shasta: Mount Shasta }
+      writes: jurisdictions.website
+      # Field keys above (besides name/website) that are stored in
+      # jurisdictions.attributes. city_type is "Charter City" (112) or
+      # "General Law City" (371).
+      attributes: [city_type, population_estimate, incorporated]
+      expected_entries: 483
+      note: every row has a website; the layer's own PRIMARY_DOMAIN is null for
+        all 483. Charter vs. general-law is a real governance distinction
+        (charter cities can set their own form of government) but it is not
+        the same as strong-mayor vs. council-manager — keep it as an attribute
+        and do not derive `governance` from it. Per-city governance is not
+        sourced yet, so only the 5 exceptions in concepts.city are known.
+    note: 483 distinct cities out of 549 raw features.
 
   school_districts:
+    kind: tsv
     url: https://www.cde.ca.gov/schooldirectory/report?rid=dl1&tp=txt
     provider: CA Department of Education, School & District Information system
-    type: dynamically-generated tab-delimited flat-file download — NOT a
-      queryable REST/JSON API like NY's ArcGIS layer; download the whole file
-      and filter client-side (an XLSX variant exists at rid=dl1&tp=xlsx&ict=Y)
-    field_mapping:
-      CDSCode (14-digit; county+district+school): jurisdiction_identifiers (scheme "cds")
-      District: name
-      County: parent county
-      DOCType: concept_id — 52=Elementary, 54=Unified, 56=High School District;
-        filter School="No Data" for district-level rows
-      WebSite: website
-    note: 18,409 total rows (schools + districts + COEs) as of this check.
+    type: dynamically generated tab-delimited flat file (all schools, districts
+      and county offices, ~8.8 MB) — filtered client-side
+    null_values: [No Data]
+    filter:
+      School: null # district-level rows only
+      StatusType: Active # drops Merged and Closed
+      DOC: ["52", "54", "56"] # Elementary, Unified, High School
+    concept: school_district
+    name: { field: District, transform: as_is }
+    identifiers:
+      - { scheme: cds, field: CDSCode } # 14 digits (county + district + school); unique
+    website: WebSite # bare hosts like "www.alamedaunified.org"; the loader adds https://
+    attributes:
+      county_name: County
+      nces_district_id: NCESDist
+      doc_type: DOCType # Elementary / Unified / High School District
+    # CDE's County is the county of record; unified and other districts can
+    # cross county lines, so this is an overlap, not containment, until t03's
+    # boundaries can say more.
+    relations:
+      - { relation: overlaps, to: county, via: attributes.county_name, coverage: partial }
+    expected_count: 935 # after the filter above: Active unified/elementary/high-school districts
+    # CDE sits behind a Radware captcha that intermittently serves an HTML
+    # page to scripts. The loader detects that (missing columns) and stops;
+    # save the file from the URL in a browser and run with
+    #   --file school_districts=<path> --file educational_region=<path>
+    note: 1,394 district-level rows in total across all statuses and types
+      (350 unified, 713 elementary, 123 high school, 60 county offices, plus
+      ROC/Ps and state entries that are not school districts).
 
-  # California's BOCES-equivalent — CDE doesn't publish these separately from
-  # school districts; same file, filtered differently
+  # California's BOCES-equivalent — same CDE file, filtered to the County
+  # Office of Education rows.
   educational_region:
+    kind: tsv
     url: https://www.cde.ca.gov/schooldirectory/report?rid=dl1&tp=txt
-    field_mapping:
-      DOC: value "00" identifies a County Office of Education row (School="No Data")
-      District: name (e.g. "Alameda County Office of Education")
-      County: parent county
-    note: 60 rows found (58 active counties + 2 historical/merged entries).
+    provider: CA Department of Education
+    null_values: [No Data]
+    filter:
+      School: null
+      StatusType: Active
+      DOC: ["00"] # County Office of Education
+    concept: educational_region
+    name: { field: District, transform: as_is } # e.g. "Alameda County Office of Education"
+    identifiers:
+      - { scheme: cds, field: CDSCode }
+    website: WebSite
+    attributes:
+      county_name: County
+      nces_district_id: NCESDist
+    relations:
+      - { relation: coextensive, to: county, via: attributes.county_name }
+    expected_count: 58 # Active only
+    note: 60 COE rows over all statuses (58 counties + 2 historical/merged).
+
+  numbered_districts:
+    # Current post-2020 apportionment. All numbered (unlike MA's named
+    # House/Senate districts).
+    us_house_district:
+      kind: static
+      concept: us_house_district
+      identifiers: [{ scheme: ca_cd, derive: number }]
+      count: 52
+      label: "Congressional District {n}"
+    state_house_district:
+      kind: static
+      concept: state_house_district
+      identifiers: [{ scheme: ca_ad, derive: number }]
+      count: 80
+      label: "Assembly District {n}"
+    state_senate_district:
+      kind: static
+      concept: state_senate_district
+      identifiers: [{ scheme: ca_sd, derive: number }]
+      count: 40
+      label: "Senate District {n}"
+    judicial_region:
+      kind: static
+      concept: judicial_region
+      identifiers: [{ scheme: ca_coa, derive: number }]
+      count: 6 # Courts of Appeal districts (profile.config.judicial_regions)
+      label: "Court of Appeal District {n}"
 
   population:
     status: not yet ingested

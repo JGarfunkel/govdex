@@ -338,7 +338,8 @@ create table bodies (
   created_at   timestamptz not null default now(),
   updated_by   uuid references users(id),
   updated_at   timestamptz not null default now(),
-  check (parent_body_id is null or parent_body_id <> id)
+  check (parent_body_id is null or parent_body_id <> id),
+  unique (id, jurisdiction_id)   -- target of adoptions' composite FK
 );
 create index idx_bodies_parent on bodies(parent_body_id) where parent_body_id is not null;
 -- Case/whitespace-insensitive uniqueness per jurisdiction (and per parent,
@@ -632,9 +633,13 @@ create table contracts (
   updated_at   timestamptz not null default now()
 );
 
+-- An adoption belongs to the jurisdiction that licenses the product; body_id is
+-- optional, for one body running its own tool (a planning board's permit
+-- tracker). The composite FK keeps a body within its adoption's jurisdiction.
 create table adoptions (
   id            uuid primary key default gen_random_uuid(),
-  body_id       uuid not null references bodies(id) on delete cascade,
+  jurisdiction_id uuid not null references jurisdictions(id) on delete cascade,
+  body_id       uuid,
   product_id    uuid not null references products(id) on delete restrict,
   contract_id   uuid references contracts(id) on delete set null,
   instance_url  text,                    -- the body's actual install
@@ -648,8 +653,12 @@ create table adoptions (
   created_at   timestamptz not null default now(),
   updated_by   uuid references users(id),
   updated_at   timestamptz not null default now(),
-  unique (body_id, product_id)
+  foreign key (body_id, jurisdiction_id) references bodies(id, jurisdiction_id) on delete cascade
 );
+create unique index adoptions_jurisdiction_product_key
+  on adoptions (jurisdiction_id, product_id) where body_id is null;
+create unique index adoptions_body_product_key
+  on adoptions (body_id, product_id) where body_id is not null;
 
 -- ---------------------------------------------------------------------------
 -- Scribe assignments + revision log
@@ -841,6 +850,7 @@ create index idx_roles_seat          on roles(seat_id);
 create index idx_roles_official      on roles(official_id);
 create index idx_channels_body       on channels(body_id);
 create index idx_adoptions_body      on adoptions(body_id);
+create index idx_adoptions_jurisdiction on adoptions(jurisdiction_id);
 create index idx_adoptions_product   on adoptions(product_id);
 create index idx_adoptions_contract  on adoptions(contract_id);
 create index idx_contracts_product   on contracts(product_id);
@@ -870,34 +880,49 @@ create view jurisdiction_profile_view as
 -- ---------------------------------------------------------------------------
 -- Scribe edit scope
 --   Editable set = assigned jurisdiction
---                + jurisdictions WITHIN it (children: towns, school districts)
---                + jurisdictions that OVERLAP or are COEXTENSIVE with it
---   One hop, non-transitive, never upward (assigned is never a child of scope).
+--                + every jurisdiction WITHIN it, at any depth (state -> county
+--                  -> town -> village; the 'within' chain is followed fully)
+--                + jurisdictions that OVERLAP or are COEXTENSIVE with the
+--                  assigned jurisdiction or any of those descendants (linked
+--                  districts: school, legislative, ...)
+--   Downward only, never upward. Overlaps are one hop: a linked district's own
+--   children and overlaps are not pulled in.
 -- ---------------------------------------------------------------------------
 create or replace function scribe_editable_jurisdictions(p_user uuid)
 returns table (jurisdiction_id uuid, grant_reason text)
 language sql stable as $$
-  with assigned as (
-    select jurisdiction_id as jid from scribe_assignments where user_id = p_user
+  with recursive assigned as (
+    select sa.jurisdiction_id as jid from scribe_assignments sa where sa.user_id = p_user
+  ),
+  -- assigned + all descendants. UNION (not UNION ALL) drops repeats, so a
+  -- bad cyclic 'within' edge terminates instead of looping.
+  tree(jid) as (
+    select jid from assigned
+    union
+    select r.from_id
+      from jurisdiction_relations r
+      join tree t on r.to_id = t.jid
+     where r.relation = 'within'
+  ),
+  linked as (
+    -- overlaps / coextensive are symmetric: catch both stored directions
+    select r.to_id as jid
+      from jurisdiction_relations r
+      join tree t on r.from_id = t.jid
+     where r.relation in ('overlaps','coextensive')
+    union
+    select r.from_id
+      from jurisdiction_relations r
+      join tree t on r.to_id = t.jid
+     where r.relation in ('overlaps','coextensive')
   )
   select jid, 'assigned' from assigned
   union
-  -- children: X within an assigned jurisdiction
-  select r.from_id, 'within_assigned'
-    from jurisdiction_relations r
-    join assigned a on r.to_id = a.jid
-   where r.relation = 'within'
+  select jid, 'within_assigned' from tree
+   where jid not in (select jid from assigned)
   union
-  -- overlaps / coextensive are symmetric: catch both stored directions
-  select r.to_id, 'overlaps_assigned'
-    from jurisdiction_relations r
-    join assigned a on r.from_id = a.jid
-   where r.relation in ('overlaps','coextensive')
-  union
-  select r.from_id, 'overlaps_assigned'
-    from jurisdiction_relations r
-    join assigned a on r.to_id = a.jid
-   where r.relation in ('overlaps','coextensive');
+  select jid, 'overlaps_assigned' from linked
+   where jid not in (select jid from tree);
 $$;
 
 -- Convenience: may this user edit rows attached to this jurisdiction?
@@ -968,8 +993,25 @@ language sql stable as $$
   from users u where u.id = p_user;
 $$;
 
+-- p_jur and every jurisdiction above it via 'within' (walks up a short chain;
+-- UNION terminates on cycles).
+create or replace function jurisdiction_self_and_ancestors(p_jur uuid)
+returns table (jurisdiction_id uuid)
+language sql stable as $$
+  with recursive up(jid) as (
+    select p_jur
+    union
+    select r.to_id
+      from jurisdiction_relations r
+      join up on r.from_id = up.jid
+     where r.relation = 'within'
+  )
+  select jid from up;
+$$;
+
 -- Tier a user holds for a specific jurisdiction. Lead comes only from an
--- assigned or within-child jurisdiction; overlaps grant scribe tier only.
+-- assigned jurisdiction or one anywhere below it; linked districts
+-- (overlaps/coextensive) grant scribe tier only.
 create or replace function user_edit_tier(p_user uuid, p_jur uuid) returns edit_tier
 language sql stable as $$
   select case
@@ -978,10 +1020,7 @@ language sql stable as $$
     when p_jur is not null and exists (
         select 1 from scribe_assignments sa
         where sa.user_id = p_user and sa.scope = 'lead'
-          and (sa.jurisdiction_id = p_jur
-               or exists (select 1 from jurisdiction_relations r
-                          where r.relation = 'within'
-                            and r.from_id = p_jur and r.to_id = sa.jurisdiction_id)))
+          and sa.jurisdiction_id in (select jurisdiction_id from jurisdiction_self_and_ancestors(p_jur)))
                                   then 'lead'::edit_tier
     when p_jur is not null and exists (
         select 1 from scribe_editable_jurisdictions(p_user) e
@@ -1018,7 +1057,7 @@ language sql stable as $$
     when 'bodies'                   then (p_row->>'jurisdiction_id')::uuid
     when 'seats'    then (select jurisdiction_id from bodies where id = (p_row->>'body_id')::uuid)
     when 'channels' then (select jurisdiction_id from bodies where id = (p_row->>'body_id')::uuid)
-    when 'adoptions'then (select jurisdiction_id from bodies where id = (p_row->>'body_id')::uuid)
+    when 'adoptions'then (p_row->>'jurisdiction_id')::uuid
     when 'contracts'then (p_row->>'holder_jurisdiction_id')::uuid
     when 'roles'    then (select b.jurisdiction_id from seats s
                           join bodies b on b.id = s.body_id

@@ -614,12 +614,14 @@ export async function loadEntityPayload(pool: Pool, jurisdictionId: string): Pro
     slug: string | null;
     updated_at: Date;
     has_active_government: boolean | null;
+    profile_code: string;
   }>(
     `select j.id, j.name, j.website, j.policy_url, j.budget_url, j.calendar_url, j.legislative_districts_url, j.verification, j.origin,
             tc.code as concept, cp.local_name, cp.local_abbrev,
-            j.attributes->>'slug' as slug, j.updated_at, cp.has_active_government
+            j.attributes->>'slug' as slug, j.updated_at, cp.has_active_government, p.code as profile_code
        from jurisdictions j
        join type_concepts tc on tc.id = j.concept_id
+       join profiles p on p.id = j.profile_id
        left join concept_profiles cp on cp.profile_id = j.profile_id and cp.concept_id = j.concept_id
       where j.id = $1`,
     [jurisdictionId],
@@ -717,17 +719,16 @@ export async function loadEntityPayload(pool: Pool, jurisdictionId: string): Pro
   // relation source_url, same precedence as committeesSource above.
   const legislativeDistrictsSource = firstSourceLink([jurisdiction.legislative_districts_url, ...districtRows.map((r) => r.relation_source_url)]);
 
-  // NY-only today — a second state would pick its profile from the
-  // jurisdiction's own `profiles` row (packages/shared/src/conf/profile.ts's
-  // loadStateProfile) instead of hardcoding "ny" here.
-  const nyProfile = loadStateProfile("ny");
-  const subdivisionsConfig = subdivisionsForConcept(nyProfile, jurisdiction.concept);
+  // The locale pack comes from the jurisdiction's own `profiles` row
+  // (US-MA -> ma.yaml), so every state gets its own governance and labels.
+  const stateProfile = loadStateProfile(jurisdiction.profile_code.replace(/^US-/, "").toLowerCase());
+  const subdivisionsConfig = subdivisionsForConcept(stateProfile, jurisdiction.concept);
   // Extra sections (e.g. "Major Cities") surface specific named jurisdictions
   // on this page even when they aren't direct within-children — Buffalo sits
   // within Erie County, not the state. They're looked up by name among this
   // jurisdiction's descendants (up to 3 `within` hops) and removed from the
   // main subdivisions list if they happen to be direct children (NYC).
-  const additionalSections = additionalSubdivisionSections(nyProfile, jurisdiction.concept);
+  const additionalSections = additionalSubdivisionSections(stateProfile, jurisdiction.concept);
   const additionalNames = Array.from(new Set(additionalSections.flatMap((s) => s.names)));
   const additionalRows = await loadNamedDescendants(pool, jurisdictionId, additionalNames);
   const additionalIds = new Set(additionalRows.map((r) => r.jurisdiction_id));
@@ -740,7 +741,7 @@ export async function loadEntityPayload(pool: Pool, jurisdictionId: string): Pro
   // "Legislative districts & seats" sections. A concept with no governance
   // config at all (state, school_district, ...) defaults to showing both,
   // same as before this was configurable.
-  const governance = governanceForConcept(nyProfile, jurisdiction.concept, jurisdiction.name);
+  const governance = governanceForConcept(stateProfile, jurisdiction.concept, jurisdiction.name);
   const showLegislativeStructure = governance?.legislative_committees ?? true;
   const committeesLabel = showLegislativeStructure ? (governance?.committees_label ?? "Committees") : null;
   const legislativeDistrictsLabel = showLegislativeStructure ? "Legislative districts & seats" : null;
