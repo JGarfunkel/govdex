@@ -10,6 +10,15 @@ const robotsCache = new Map<string, ReturnType<typeof robotsParser> | null>();
 // on every one of a site's disallowed pages, not just the first.
 const robotsChecked = new Set<string>();
 
+const FETCH_TIMEOUT_MS = 20_000;
+// A network-level failure (DNS, refused, timeout — not an HTTP error status)
+// means the whole origin is unreachable, not just this one URL. Without this,
+// a crawl that finds hundreds of links on a dead vendor host (e.g. IQM2
+// Detail_LegiFile pages) pays a full failed attempt for every one of them.
+// Time-based rather than permanent because worker.ts is a long-lived process.
+const HOST_BACKOFF_MS = 10 * 60_000;
+const unreachableUntil = new Map<string, number>();
+
 async function getRobots(origin: string) {
   if (robotsCache.has(origin)) return robotsCache.get(origin)!;
   try {
@@ -140,6 +149,7 @@ async function fetchRaw(url: string, meta?: FetchMeta): Promise<{ contentType: s
   if (cached) return { contentType: cached.contentType ?? "", html: cached.html };
 
   const parsed = new URL(url);
+  if ((unreachableUntil.get(parsed.origin) ?? 0) > Date.now()) return null;
   const robots = await getRobots(parsed.origin);
   if (robots && robots.isDisallowed(url, USER_AGENT)) {
     console.warn(`  robots.txt disallows ${url}, skipping`);
@@ -147,7 +157,11 @@ async function fetchRaw(url: string, meta?: FetchMeta): Promise<{ contentType: s
     return null;
   }
   try {
-    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT }, redirect: "follow" });
+    const res = await fetch(url, {
+      headers: { "User-Agent": USER_AGENT },
+      redirect: "follow",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (!res.ok) {
       if (isBotChallenge(res)) {
         console.warn(`  fetch ${url} intercepted by bot-management challenge (${res.status}), skipping`);
@@ -163,7 +177,10 @@ async function fetchRaw(url: string, meta?: FetchMeta): Promise<{ contentType: s
     await savePage(url, html, { ...meta, contentType });
     return { contentType, html };
   } catch (err) {
-    console.warn(`  fetch failed for ${url}: ${err instanceof Error ? err.message : err}`);
+    console.warn(
+      `  fetch failed for ${url}: ${err instanceof Error ? err.message : err} — skipping ${parsed.origin} for ${HOST_BACKOFF_MS / 60_000} min`,
+    );
+    unreachableUntil.set(parsed.origin, Date.now() + HOST_BACKOFF_MS);
     return null;
   }
 }
