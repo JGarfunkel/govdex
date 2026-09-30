@@ -124,5 +124,10 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
+  },
+  "pnpm": {
+    "overrides": {
+      "@radix-ui/react-dismissable-layer": "1.1.19"
+    }
   }
 }
