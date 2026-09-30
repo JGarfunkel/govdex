@@ -28,14 +28,14 @@ substitutions:
   _NEXT_PUBLIC_FIREBASE_APP_ID: ""
   # Runtime secrets mounted as env vars: ENV=secret:version, comma-separated.
   _SECRETS: >-
-    DATABASE_URL=DATABASE_URL:latest,
-    # FIREBASE_ADMIN_PROJECT_ID=govdex-firebase-admin-project-id:latest,
-    # FIREBASE_ADMIN_CLIENT_EMAIL=govdex-firebase-admin-client-email:latest,
-    # FIREBASE_ADMIN_PRIVATE_KEY=govdex-firebase-admin-private-key:latest,
-    # R2_ACCOUNT_ID=govdex-r2-account-id:latest,
-    # R2_ACCESS_KEY_ID=govdex-r2-access-key-id:latest,
-    # R2_SECRET_ACCESS_KEY=govdex-r2-secret-access-key:latest,
-    # R2_BUCKET=govdex-r2-bucket:latest
+    DATABASE_URL=DATABASE_URL:latest
+  # FIREBASE_ADMIN_PROJECT_ID=govdex-firebase-admin-project-id:latest,
+  # FIREBASE_ADMIN_CLIENT_EMAIL=govdex-firebase-admin-client-email:latest,
+  # FIREBASE_ADMIN_PRIVATE_KEY=govdex-firebase-admin-private-key:latest,
+  # R2_ACCOUNT_ID=govdex-r2-account-id:latest,
+  # R2_ACCESS_KEY_ID=govdex-r2-access-key-id:latest,
+  # R2_SECRET_ACCESS_KEY=govdex-r2-secret-access-key:latest,
+  # R2_BUCKET=govdex-r2-bucket:latest
 
 options:
   logging: CLOUD_LOGGING_ONLY
