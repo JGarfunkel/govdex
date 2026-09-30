@@ -21,7 +21,8 @@ export async function readDocumentHtml(slug: string): Promise<string> {
 // static page.tsx, not through this map. Add an entry + matching
 // content/{slug}.html to publish a new one.
 export const aboutDocs = {
-  govGuide: "Guide for Governments",
+  "gov-structures": "Understanding US Government Structures",
+  "gov-guide": "Guide for Governments",
   faq: "FAQ",
 } as const;
 
