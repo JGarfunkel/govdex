@@ -56,6 +56,9 @@ app.get("/representing.html", (_req, res) => {
     console.log("Starting server...");
     // getPool() only throws on first query, i.e. on the first request. Surface a
     // missing/empty DATABASE_URL at boot (presence only — never log the value).
+    console.log(
+      `DATABASE_URL at boot: ${process.env.DATABASE_URL ? `set (${process.env.DATABASE_URL.length} chars)` : "MISSING"}; pid ${process.pid}`,
+    );
     if (!process.env.DATABASE_URL) {
       const dbKeys = Object.keys(process.env).filter((k) => k.toUpperCase().includes("DATABASE"));
       console.error(
