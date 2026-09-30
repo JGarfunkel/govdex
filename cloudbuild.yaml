@@ -1,0 +1,84 @@
+# Build the web image, push it to Artifact Registry, deploy to Cloud Run.
+#
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --substitutions=_NEXT_PUBLIC_FIREBASE_API_KEY=...,_NEXT_PUBLIC_FIREBASE_PROJECT_ID=...,...
+#
+# Or attach to a Cloud Build trigger on main and set the substitutions there.
+#
+# One-time setup (not done by this file):
+#   - Artifact Registry Docker repo named by _REPO in _REGION
+#   - Cloud Build service account needs roles/run.admin,
+#     roles/iam.serviceAccountUser, roles/artifactregistry.writer
+#   - Secret Manager secrets named in _SECRETS below (runtime-only values;
+#     the Cloud Run service account needs roles/secretmanager.secretAccessor)
+#   - DATABASE_URL must be reachable from Cloud Run (Neon over TLS, or Cloud
+#     SQL via --add-cloudsql-instances and a /cloudsql socket URL)
+#
+# Not deployed here: the crawl worker (infra/crawl-worker.Dockerfile). It is a
+# long-running poller, so it wants its own always-on service (Cloud Run with
+# min-instances=1 and no CPU throttling, or a GCE VM), not request-driven Run.
+substitutions:
+  _REGION: us-east1
+  _REPO: govdex
+  _SERVICE: govdex-web
+  # Firebase web config: public by design, inlined into the client bundle.
+  _NEXT_PUBLIC_FIREBASE_API_KEY: ""
+  _NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ""
+  _NEXT_PUBLIC_FIREBASE_PROJECT_ID: ""
+  _NEXT_PUBLIC_FIREBASE_APP_ID: ""
+  # Runtime secrets mounted as env vars: ENV=secret:version, comma-separated.
+  _SECRETS: >-
+    DATABASE_URL=govdex-database-url:latest,
+    # FIREBASE_ADMIN_PROJECT_ID=govdex-firebase-admin-project-id:latest,
+    # FIREBASE_ADMIN_CLIENT_EMAIL=govdex-firebase-admin-client-email:latest,
+    # FIREBASE_ADMIN_PRIVATE_KEY=govdex-firebase-admin-private-key:latest,
+    # R2_ACCOUNT_ID=govdex-r2-account-id:latest,
+    # R2_ACCESS_KEY_ID=govdex-r2-access-key-id:latest,
+    # R2_SECRET_ACCESS_KEY=govdex-r2-secret-access-key:latest,
+    # R2_BUCKET=govdex-r2-bucket:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8 # two next builds + vite build; default machine is slow
+
+timeout: 1800s
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    env: ["DOCKER_BUILDKIT=1"]
+    args:
+      - build
+      # - --build-arg=NEXT_PUBLIC_FIREBASE_API_KEY=${_NEXT_PUBLIC_FIREBASE_API_KEY}
+      # - --build-arg=NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+      # - --build-arg=NEXT_PUBLIC_FIREBASE_PROJECT_ID=${_NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+      # - --build-arg=NEXT_PUBLIC_FIREBASE_APP_ID=${_NEXT_PUBLIC_FIREBASE_APP_ID}
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$BUILD_ID
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:latest
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}"]
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$BUILD_ID
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8080
+      - --memory=2Gi
+      - --cpu=1
+      - --set-secrets=${_SECRETS}
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$BUILD_ID
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:latest
