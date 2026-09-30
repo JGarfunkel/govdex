@@ -69,7 +69,7 @@ rules:
     vendor: Granicus
     function: video_streaming
   - match: ["iqm2.com"]
-    vendor: "IQM2 (AgendaQuick)"
+    vendor: "IQM2 (Granicus)"
     function: agenda_minutes
   - match: ["lariticloud.com"]
     vendor: Lariti
@@ -77,6 +77,9 @@ rules:
   - match: ["legistar.com"]
     vendor: Legistar
     function: agenda_minutes
+  - match: ["municollab.com"]
+    vendor: Municollab
+    function: board_management
   - match: ["municipay.com"]
     vendor: MuniciPay
     function: payments
@@ -116,6 +119,7 @@ rules:
   - match: ["versaterm.com"]
     vendor: Versaterm
     function: public_safety
+
 
 # Hosts that are never vendor candidates, so they don't drown out real
 # unknowns in the "unclassified external links" report: analytics/fonts/CDN
