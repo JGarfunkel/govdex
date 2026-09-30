@@ -11,6 +11,5 @@ reports/ny-transparency/next-env.d.ts
 data/ny-transparency/
 infra/pgdata/
 data/govdex/*
-!data/govdex/blacklists/
 apps/web/.next
 apps/web/next-env.d.ts
