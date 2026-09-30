@@ -27,15 +27,18 @@ substitutions:
   _NEXT_PUBLIC_FIREBASE_PROJECT_ID: ""
   _NEXT_PUBLIC_FIREBASE_APP_ID: ""
   # Runtime secrets mounted as env vars: ENV=secret:version, comma-separated.
+  # Keep comments OUTSIDE the block scalar below: indented `#` lines inside a
+  # `>-` block are part of the string, not comments, and corrupt the flag.
+  # Not yet enabled (append each with a leading comma to the value below):
+  #   FIREBASE_ADMIN_PROJECT_ID=govdex-firebase-admin-project-id:latest
+  #   FIREBASE_ADMIN_CLIENT_EMAIL=govdex-firebase-admin-client-email:latest
+  #   FIREBASE_ADMIN_PRIVATE_KEY=govdex-firebase-admin-private-key:latest
+  #   R2_ACCOUNT_ID=govdex-r2-account-id:latest
+  #   R2_ACCESS_KEY_ID=govdex-r2-access-key-id:latest
+  #   R2_SECRET_ACCESS_KEY=govdex-r2-secret-access-key:latest
+  #   R2_BUCKET=govdex-r2-bucket:latest
   _SECRETS: >-
     DATABASE_URL=DATABASE_URL:latest
-  # FIREBASE_ADMIN_PROJECT_ID=govdex-firebase-admin-project-id:latest,
-  # FIREBASE_ADMIN_CLIENT_EMAIL=govdex-firebase-admin-client-email:latest,
-  # FIREBASE_ADMIN_PRIVATE_KEY=govdex-firebase-admin-private-key:latest,
-  # R2_ACCOUNT_ID=govdex-r2-account-id:latest,
-  # R2_ACCESS_KEY_ID=govdex-r2-access-key-id:latest,
-  # R2_SECRET_ACCESS_KEY=govdex-r2-secret-access-key:latest,
-  # R2_BUCKET=govdex-r2-bucket:latest
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -78,6 +81,9 @@ steps:
       - --memory=2Gi
       - --cpu=1
       - --set-secrets=${_SECRETS}
+      # Next's server-side fetches (apps/web/lib/api.ts) call the Express API in
+      # this same process; must match --port above.
+      - --update-env-vars=GOVDEX_API_BASE_URL=http://localhost:8080  
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$BUILD_ID

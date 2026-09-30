@@ -54,6 +54,15 @@ app.get("/representing.html", (_req, res) => {
 (async () => {
   try {
     console.log("Starting server...");
+    // getPool() only throws on first query, i.e. on the first request. Surface a
+    // missing/empty DATABASE_URL at boot (presence only — never log the value).
+    if (!process.env.DATABASE_URL) {
+      const dbKeys = Object.keys(process.env).filter((k) => k.toUpperCase().includes("DATABASE"));
+      console.error(
+        `WARNING: DATABASE_URL is not set or empty (DATABASE* env keys present: ${dbKeys.join(", ") || "none"}). ` +
+          "All /api/stack requests that touch the database will fail.",
+      );
+    }
     const server = await registerRoutes(app);
     console.log("Routes registered.");
 
