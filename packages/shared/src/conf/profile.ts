@@ -8,10 +8,13 @@
 // components; apps/web's server routes/loaders are fine.
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Resolved from the repo root (cwd), not import.meta.url: the production server
+// is an esbuild CJS bundle (dist/index.cjs), where import.meta.url is undefined
+// and the yaml files aren't next to the bundle anyway. Same convention as
+// server/index.ts. Run from the repo root (tsx scripts, Docker WORKDIR /app).
+const __dirname = path.resolve(process.cwd(), "packages", "shared", "src", "conf");
 
 export interface ConceptProfile {
   local_name: string;
