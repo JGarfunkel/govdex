@@ -22,6 +22,8 @@ const PLATFORM_GROUPS: { key: string; icon: string; label: string; color: string
   { key: "slack", icon: "ti-brand-slack", label: "Slack", color: "#4A154B", platforms: ["slack"] },
 ];
 
+const COMMUNITY_KEYS = new Set(["discord", "slack"]);
+
 function Glyph({
   icon,
   label,
@@ -50,6 +52,7 @@ export function ChannelGlyphs({
   email,
   channels,
   editTarget,
+  hideCommunity,
 }: {
   email?: string | null;
   channels: ChannelInfo[];
@@ -59,6 +62,9 @@ export function ChannelGlyphs({
   // governing body has no email/channels table row to anchor an edit on —
   // see EditTarget in geoTypes.ts.
   editTarget?: EditTarget;
+  // Drop the community platforms (Discord, Slack) — general-purpose
+  // governments (state/county/municipality) are unlikely to have them.
+  hideCommunity?: boolean;
 }) {
   const { idToken, canEdit } = useAuth();
   const editableBodyOnly = canEdit && editTarget?.table === "bodies";
@@ -104,7 +110,7 @@ export function ChannelGlyphs({
         }
       />
       <span className="glyph-divider" aria-hidden="true" />
-      {PLATFORM_GROUPS.map((group) => {
+      {PLATFORM_GROUPS.filter((g) => !(hideCommunity && COMMUNITY_KEYS.has(g.key))).map((group) => {
         const channel = channels.find(
           (c) => c.platform && group.platforms.includes(c.platform) && c.status === "present" && c.url,
         );

@@ -75,6 +75,7 @@ export interface EntityRef {
   // on the state page: `westchester/yonkers`). Null = use `slug`.
   relativePath?: string | null;
   website: string | null;
+  budgetUrl?: string | null;
   email: string | null;
   channels: ChannelInfo[];
   editTarget: EditTarget;

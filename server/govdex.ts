@@ -68,7 +68,11 @@ export async function setupGovdex(app: Express, httpServer: Server, dev: boolean
     // (visible on any path that falls through to the legacy Vite app, e.g. a
     // 404). Claim the wiring ourselves and forward only Next's own sockets.
     nextApp.didWebSocketSetup = true;
-    const upgradeHandler = nextApp.getUpgradeHandler();
+    // nextApp.getUpgradeHandler() delegates to the inner NextServer.handleUpgrade,
+    // which never answers Next 16's /_next/hmr handshake (the socket just hangs,
+    // so the client never hydrates — no errors, dead buttons). The router-server's
+    // own handler, exposed as nextApp.upgradeHandler, is the one that does.
+    const upgradeHandler = nextApp.upgradeHandler;
     httpServer.on("upgrade", (req, socket, head) => {
       // Next 16 serves HMR at /_next/hmr (older versions: /_next/webpack-hmr).
       if (req.url?.startsWith("/_next/")) {

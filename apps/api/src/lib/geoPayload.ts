@@ -448,10 +448,17 @@ async function attachEntityChannels(
     friction.filter((f) => frictionSeverity(f.pattern_type) === "severe").map((f) => f.jurisdiction_id),
   );
 
+  const { rows: budgets } = await pool.query<{ id: string; budget_url: string | null }>(
+    `select id, budget_url from jurisdictions where id = any($1)`,
+    [ids],
+  );
+  const budgetById = new Map(budgets.map((b) => [b.id, b.budget_url]));
+
   return rows.map((r) => {
     const body = bodyByJurisdiction.get(r.jurisdiction_id);
     return {
       id: r.jurisdiction_id,
+      budgetUrl: budgetById.get(r.jurisdiction_id) ?? null,
       name: r.name,
       concept: r.concept,
       localName: r.local_name,

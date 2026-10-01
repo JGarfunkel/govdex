@@ -40,6 +40,8 @@ export function ResourceGlyphs({
   agendaUrl,
   minutesUrl,
   policyUrl,
+  budgetUrl,
+  showBudget,
   isJurisdiction,
   // Projects has no backing field yet (no capital-projects table), so this
   // always renders faint/unlinked when shown. Callers opt in per the
@@ -54,6 +56,8 @@ export function ResourceGlyphs({
   agendaUrl?: string | null;
   minutesUrl?: string | null;
   policyUrl?: string | null;
+  budgetUrl?: string | null;
+  showBudget?: boolean;
   isJurisdiction?: boolean;
   showProjects?: boolean;
   // Where an edit writes to — see ChannelGlyphs' editTarget for the same
@@ -112,6 +116,7 @@ export function ResourceGlyphs({
         }
       />
       {isJurisdiction && <Glyph icon="ti-gavel" label="policies / law" color="#5a686e" href={policyUrl} />}
+      {showBudget && <Glyph icon="ti-coin" label="budget" color="#5a686e" href={budgetUrl} />}
       {/* No projects_url field exists yet — this glyph is always the faint
           "no projects" state until capital projects are modeled. It's shown
           anyway (when applicable) so the gap reads as an opportunity rather

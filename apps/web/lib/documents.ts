@@ -24,6 +24,7 @@ export const aboutDocs = {
   "gov-structures": "Understanding US Government Structures",
   "gov-guide": "Guide for Governments",
   faq: "FAQ",
+  legend: "Legend",
 } as const;
 
 export type AboutDocSlug = keyof typeof aboutDocs;
