@@ -107,39 +107,75 @@ governance:
 # ny.yaml's sources block for the field shape). Verified live against the
 # actual endpoints, not recalled from memory.
 sources:
+  state:
+    kind: static
+    concept: state
+    name: Minnesota
+    identifiers:
+      - { scheme: usps_state, value: MN }
+    fips: "27"
+
   counties:
+    kind: arcgis
     url: https://feat.gisdata.mn.gov/arcgis/rest/services/MnGeo/mn_counties/FeatureServer/0
     provider: MnGeo (Minnesota Geospatial Information Office)
     type: ArcGIS REST FeatureServer
-    field_mapping:
-      county_name: name
-      county_code: attributes.mn_county_code
-      county_fips55_co: attributes.county_fips
-    note: verified 87 counties, exact match.
+    concept: county
+    name: county_name # mixed case already, e.g. "Red Lake"
+    identifiers:
+      - { scheme: fips, field: { field: county_fips55_code, prefix: "27" } } # 3-digit county code -> 5-digit, e.g. 27053
+    attributes:
+      county_fips: { field: county_fips55_code, prefix: "27" }
+      mn_county_code: county_code # MN's own 2-digit code — the join key municipalities carry
+    relations:
+      - { relation: within, to: state }
+    expected_count: 87
+    note: verified 87 counties, exact match. Layer fields are county_name,
+      county_code, county_fips55_code (3-digit, county part only),
+      county_gnis_feature_id, atp_code.
 
   municipalities:
+    kind: arcgis
     url: https://feat.gisdata.mn.gov/arcgis/rest/services/MnGeo/CTU/FeatureServer/0
     provider: same MnGeo host, "City, Township, Unorganized Territory" (CTU) layer
     type: ArcGIS REST FeatureServer
-    field_mapping:
-      feature_name: name
-      ctu_class: concept_id — distinguishes CITY / TOWNSHIP / UNORGANIZED
-        TERRITORY (correctly reflects that MN villages no longer exist)
-      county_name / county_code: parent county
-      population: attributes.population_estimate (see population below)
-    note: schema confirmed live; a CITY-only filter returned 906, which is
-      plausibly inflated by imprecise query filtering — re-verify the exact
-      city-only count with a cleaner query before relying on it downstream.
+    # Verified ctu_class values: CITY, TOWNSHIP, UNORGANIZED TERRITORY (plus one
+    # row with a null class). Unorganized territories have no government, so
+    # they are deliberately unmapped and the loader reports them as skipped.
+    concept_from:
+      field: ctu_class
+      map: { CITY: city, TOWNSHIP: town }
+    name: feature_name # a city and a township can share a name (e.g. Aitkin); gnis tells them apart
+    identifiers:
+      - { scheme: gnis, field: gnis_feature_id }
+    attributes:
+      mn_county_code: county_code # joins to counties.attributes.mn_county_code
+      population_estimate: population
+    # A municipality spanning two counties can appear as two features with the
+    # same GNIS id; keep the first (it is one jurisdiction).
+    dedupe_on: gnis_feature_id
+    relations:
+      - { relation: within, to: county, via: attributes.mn_county_code }
+    note: the layer has more than 2000 rows, so it is paged. The source has no
+      county FIPS, only MN's own county_code, hence the mn_county_code join.
+      The earlier "906 cities" figure counted features; re-check the unique
+      city count after the first load.
 
   school_districts:
+    kind: arcgis
     url: https://enterprise.gisdata.mn.gov/aghost/rest/services/us_mn_state_mde/bdry_school_district_boundaries/FeatureServer/0
     provider: Minnesota Dept of Education (MDE)
     type: ArcGIS REST FeatureServer
-    field_mapping:
-      prefname (or shortname): name
-      sdorgid / sdnumber: jurisdiction_identifiers (scheme "mn_sdorgid")
-      sdtype: concept_id
-      web_url: website
+    concept: school_district
+    name: { field: prefname, transform: as_is } # e.g. "Aitkin Public School District"
+    identifiers:
+      - { scheme: mn_sdorgid, field: sdorgid }
+    attributes:
+      mn_sdnumber: sdnumber
+      mn_formid: formid
+      sdtype: sdtype # 01 independent (325), 02 common (2), 03 special (2)
+    website: web_url
+    expected_count: 329
     note: verified 329 districts (matches the ~330 expected).
 
   educational_region:
