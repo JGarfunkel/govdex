@@ -45,6 +45,21 @@ export default async function HomePage() {
       <p style={{ color: "var(--soft)", fontSize: "0.9em", marginTop: -12 }}>
         {liveNames.length > 0 ? `Live today: ${liveNames.join(", ")}.` : "No states are live yet."} Other states link to their config review page.
       </p>
+
+      <p>
+        The right to know what government does is well established. 
+        The ability to find it easily is not. Records are often public but scattered across dozens of websites, in formats only insiders can navigate.
+      </p>
+
+<ol>
+  <li><i>To find who holds power</i>. Every executive, legislative, judicial, advisory, and party seat that affects your address, with an official way to reach each one.</li>
+  <li><i>To find what they are working on</i>. Agendas, minutes, and the projects and tasks those meetings produce.</li>
+  <li><i>To find where to be heard</i>. Which channels each body runs, and whether residents can talk back or only listen.</li>
+  <li><i>To find the tools of government</i>. Which software each body uses to do its work.</li>
+  <li><i>To find what is measured</i>. Which conditions government tracks where you live, and which it does not.</li>
+  <li><i>To find data you can use</i>. Public data on maps and over time, at a fine grain, and current enough to matter.</li>
+  <li><i>To find what is missing</i>. A checked absence, recorded separately from a gap nobody has looked into.</li>
+</ol>
     </main>
   );
 }
