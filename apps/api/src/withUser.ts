@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
 import { getPool } from "./db";
+import { clearEntityPayloadCache } from "./lib/geoPayload";
 
 // Run a handler in a transaction with app.user_id set for the duration.
 // This is the load-bearing piece: every user-driven write goes through it, so
@@ -13,6 +14,7 @@ export async function withUser<T>(userId: string, fn: (client: PoolClient) => Pr
     await client.query("select set_config('app.user_id', $1, true)", [userId]); // true = local to txn
     const result = await fn(client);
     await client.query("commit");
+    clearEntityPayloadCache(); // page payloads may now be stale
     return result;
   } catch (e) {
     await client.query("rollback");

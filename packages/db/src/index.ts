@@ -1,1 +1,1 @@
-export { getPool } from "./pool";
+export { getPool, checkDb } from "./pool";

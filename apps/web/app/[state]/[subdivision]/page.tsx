@@ -1,6 +1,5 @@
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { govdexFetchJson } from "../../../lib/api";
+import { fetchGeoPayload, notFoundOrRethrow } from "../../../lib/api";
 import { EntityPage } from "../../../components/EntityPage";
 import type { GeoPayload } from "../../../lib/geoTypes";
 
@@ -11,7 +10,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { state, subdivision } = await params;
   try {
-    const payload = await govdexFetchJson<GeoPayload>(`/geo/${state}/${subdivision}`);
+    const payload = await fetchGeoPayload(`${state}/${subdivision}`);
     return { title: `${payload.jurisdiction.name} - GovDex` };
   } catch {
     return {};
@@ -22,9 +21,9 @@ export default async function SubdivisionPage({ params }: { params: Promise<{ st
   const { state, subdivision } = await params;
   let payload: GeoPayload;
   try {
-    payload = await govdexFetchJson<GeoPayload>(`/geo/${state}/${subdivision}`);
-  } catch {
-    notFound();
+    payload = await fetchGeoPayload(`${state}/${subdivision}`);
+  } catch (e) {
+    notFoundOrRethrow(e);
   }
 
   return (

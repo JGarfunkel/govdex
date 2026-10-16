@@ -5,6 +5,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupNyTransparency } from "./ny-transparency";
 import { setupGovdex } from "./govdex";
+import { checkDb } from "@govdex/db";
 
 const app = express();
 app.use(express.json());
@@ -23,8 +24,20 @@ app.use((req, res, next) => {
     return originalResJson.apply(res, [bodyJson, ...args]);
   };
 
+  // Page renders (Next) aren't /api, so they were never logged and a hung one
+  // printed nothing at all. Flag any request still pending after 3s, and log
+  // slow page/asset responses on finish.
+  const isAsset = path.startsWith("/_next/static") || path.startsWith("/_next/image");
+  const pending = isAsset
+    ? undefined
+    : setTimeout(() => log(`… still pending after 3s: ${req.method} ${req.originalUrl}`), 3000);
+  res.on("close", () => clearTimeout(pending));
+
   res.on("finish", () => {
     const duration = Date.now() - start;
+    if (!path.startsWith("/api") && !isAsset && duration > 500) {
+      log(`${req.method} ${req.originalUrl} ${res.statusCode} in ${duration}ms (slow page)`);
+    }
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
@@ -64,6 +77,14 @@ app.get("/representing.html", (_req, res) => {
       console.error(
         `WARNING: DATABASE_URL is not set or empty (DATABASE* env keys present: ${dbKeys.join(", ") || "none"}). ` +
           "All /api/stack requests that touch the database will fail.",
+      );
+    }
+    // Don't block boot on it: report DB reachability as soon as it's known.
+    if (process.env.DATABASE_URL) {
+      void checkDb().then((r) =>
+        r.ok
+          ? console.log(`[db] reachable (${r.ms}ms)`)
+          : console.error(`[db] UNREACHABLE after ${r.ms}ms: ${r.error} — pages that need the database will fail or hang`),
       );
     }
     const server = await registerRoutes(app);

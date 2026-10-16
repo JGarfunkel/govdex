@@ -477,19 +477,43 @@ async function attachEntityChannels(
   });
 }
 
-export async function findStateJurisdictionBySlug(pool: Pool, slug: string): Promise<string | null> {
-  const { rows } = await pool.query<{ id: string }>(
-    `select j.id
-       from jurisdictions j
-       join type_concepts tc on tc.id = j.concept_id
-      where tc.code = 'state' and j.attributes->>'slug' = $1
-      limit 1`,
-    [slug],
-  );
-  return rows[0]?.id ?? null;
+// Slug -> id resolution runs on every page/API request (several times per
+// nested URL), and crawlers hammer it, but slugs only change on ingestion or
+// a rare manual edit. Cache in-process with a TTL; misses (crawler 404s) get
+// a shorter TTL. The size cap keeps junk-URL crawls from growing the map.
+const SLUG_HIT_TTL_MS = 10 * 60 * 1000;
+const SLUG_MISS_TTL_MS = 60 * 1000;
+const SLUG_CACHE_MAX = 5000;
+const slugCache = new Map<string, { at: number; id: string | null }>();
+
+async function cachedSlugLookup(key: string, load: () => Promise<string | null>): Promise<string | null> {
+  const hit = slugCache.get(key);
+  if (hit && Date.now() - hit.at < (hit.id ? SLUG_HIT_TTL_MS : SLUG_MISS_TTL_MS)) return hit.id;
+  const id = await load();
+  if (slugCache.size >= SLUG_CACHE_MAX) slugCache.delete(slugCache.keys().next().value as string);
+  slugCache.set(key, { at: Date.now(), id });
+  return id;
 }
 
-export async function findChildJurisdictionBySlug(pool: Pool, parentId: string, slug: string): Promise<string | null> {
+export function findStateJurisdictionBySlug(pool: Pool, slug: string): Promise<string | null> {
+  return cachedSlugLookup(`state|${slug}`, async () => {
+    const { rows } = await pool.query<{ id: string }>(
+      `select j.id
+         from jurisdictions j
+         join type_concepts tc on tc.id = j.concept_id
+        where tc.code = 'state' and j.attributes->>'slug' = $1
+        limit 1`,
+      [slug],
+    );
+    return rows[0]?.id ?? null;
+  });
+}
+
+export function findChildJurisdictionBySlug(pool: Pool, parentId: string, slug: string): Promise<string | null> {
+  return cachedSlugLookup(`child|${parentId}|${slug}`, () => queryChildJurisdictionBySlug(pool, parentId, slug));
+}
+
+async function queryChildJurisdictionBySlug(pool: Pool, parentId: string, slug: string): Promise<string | null> {
   // Direct `within`-child first (covers every case except villages, which
   // are routed as peers of their town — see the "subdivisions" query above).
   const { rows } = await pool.query<{ id: string }>(
@@ -604,7 +628,36 @@ async function loadAdoptions(pool: Pool, jurisdictionId: string): Promise<Adopti
   }));
 }
 
-export async function loadEntityPayload(pool: Pool, jurisdictionId: string): Promise<GeoPayload | null> {
+// Whole-page payload cache. The payload is user-independent (edit rights are
+// checked separately), so one entry per jurisdiction serves everyone. User
+// writes go through withUser, which calls clearEntityPayloadCache() after
+// commit, so in-process edits show up immediately; the TTL only bounds how
+// long out-of-process changes (ingestion/spider runs) can stay invisible.
+// In-flight promises are cached too, so a crawler burst on one page shares a
+// single set of queries. Failures are not cached.
+const ENTITY_PAYLOAD_TTL_MS = 5 * 60 * 1000;
+const ENTITY_PAYLOAD_CACHE_MAX = 500;
+const entityPayloadCache = new Map<string, { at: number; payload: Promise<GeoPayload | null> }>();
+
+export function clearEntityPayloadCache(): void {
+  entityPayloadCache.clear();
+}
+
+export function loadEntityPayload(pool: Pool, jurisdictionId: string): Promise<GeoPayload | null> {
+  const hit = entityPayloadCache.get(jurisdictionId);
+  if (hit && Date.now() - hit.at < ENTITY_PAYLOAD_TTL_MS) return hit.payload;
+  if (entityPayloadCache.size >= ENTITY_PAYLOAD_CACHE_MAX) {
+    entityPayloadCache.delete(entityPayloadCache.keys().next().value as string);
+  }
+  const entry = { at: Date.now(), payload: loadEntityPayloadUncached(pool, jurisdictionId) };
+  entityPayloadCache.set(jurisdictionId, entry);
+  entry.payload.catch(() => {
+    if (entityPayloadCache.get(jurisdictionId) === entry) entityPayloadCache.delete(jurisdictionId);
+  });
+  return entry.payload;
+}
+
+async function loadEntityPayloadUncached(pool: Pool, jurisdictionId: string): Promise<GeoPayload | null> {
   const { rows: jurRows } = await pool.query<{
     id: string;
     name: string;
