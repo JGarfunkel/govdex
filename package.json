@@ -9,8 +9,8 @@
   "scripts": {
     "preinstall": "node -e \"if(!/pnpm/.test(process.env.npm_execpath||'')){console.error('\\nThis repo is a pnpm workspace (apps/, packages/, ingestion/). Plain npm install does not understand pnpm-workspace.yaml and will wipe the @govdex/* workspace symlinks. Run: pnpm install\\n');process.exit(1)}\"",
     "dev": "cross-env NODE_ENV=development npx tsx server/index.ts",
-    "build-local": "npx vite build && npx next build reports/ny-transparency && pnpm -C apps/web exec next build && esbuild server/index.ts --platform=node --bundle --packages=bundle --external:vite --external:next --format=cjs --outdir=dist --out-extension:.js=.cjs",
-    "build": "npx vite build && npx next build reports/ny-transparency && pnpm -C apps/web exec next build && esbuild server/index.ts --platform=node --bundle --packages=bundle --external:vite --external:next --format=cjs --outdir=dist --out-extension:.js=.cjs",
+    "build-local": "npx vite build && pnpm -C reports/ny-transparency exec next build && pnpm -C apps/web exec next build && esbuild server/index.ts --platform=node --bundle --packages=bundle --external:vite --external:next --format=cjs --outdir=dist --out-extension:.js=.cjs",
+    "build": "npx vite build && pnpm -C reports/ny-transparency exec next build && pnpm -C apps/web exec next build && esbuild server/index.ts --platform=node --bundle --packages=bundle --external:vite --external:next --format=cjs --outdir=dist --out-extension:.js=.cjs",
     "start": "cross-env NODE_ENV=production node --env-file=prod.env dist/index.cjs",
     "check": "tsc",
     "test": "vitest run",

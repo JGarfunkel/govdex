@@ -1,0 +1,14 @@
+{
+  "name": "@govdex/ny-transparency",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "next": "^16.3.5",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
+  }
+}

@@ -1,4 +1,6 @@
 import path from "path";
+import { createRequire } from "module";
+import { pathToFileURL } from "url";
 import type { Express } from "express";
 import type { Server } from "http";
 import { log } from "./vite";
@@ -10,7 +12,10 @@ export async function setupNyTransparency(app: Express, httpServer: Server, dev:
   );
 
   const dir = path.resolve(process.cwd(), "reports", "ny-transparency");
-  const next = (await import("next")).default;
+  // Resolve next from the report's own package so it pairs with its React 19,
+  // not the root workspace's React 18 (Next 16 fails SSR with InvariantError there).
+  const requireFromHere = createRequire(path.join(dir, "package.json"));
+  const next = (await import(pathToFileURL(requireFromHere.resolve("next")).href)).default;
   const nextApp = next({ dev, dir });
   await nextApp.prepare();
   const requestHandler = nextApp.getRequestHandler();
