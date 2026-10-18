@@ -21,7 +21,7 @@ const US_STATE_CODES = new Set([
 // static documents (apps/web/content), and the
 // stable UUID-permalink fallback for entities without a slug yet (see
 // EntityList.tsx).
-const GOVDEX_UNSCOPED_PATH = /^\/(?:login|resolve|scribe|about)(?:\/.*)?$/;
+const GOVDEX_UNSCOPED_PATH = /^\/(?:login|resolve|scribe|about|revalidate)(?:\/.*)?$/;
 const GOVDEX_ID_PERMALINK = /^\/(?:jurisdictions|bodies)\/[^/]+$/;
 
 function isGovdexPath(pathname: string): boolean {

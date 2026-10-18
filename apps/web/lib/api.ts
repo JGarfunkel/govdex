@@ -57,4 +57,15 @@ export async function govdexFetchJson<T>(path: string, init?: RequestInit & { id
 // generateMetadata and the page body both need the same payload; React's
 // cache() shares one fetch between them within a single request, so each page
 // view costs one API call (and one set of DB queries) instead of two.
-export const fetchGeoPayload = cache((geoPath: string) => govdexFetchJson<GeoPayload>(`/geo/${geoPath}`));
+//
+// The payload is public and identical for every viewer, so it goes in Next's
+// data cache (which also makes the page itself ISR). Writes call POST
+// /revalidate (app/revalidate/route.ts) to expire the "geo" tag; the long
+// revalidate is only a safety net for changes that bypass it.
+export const GEO_CACHE_TAG = "geo";
+const GEO_REVALIDATE_SECONDS = 24 * 60 * 60;
+export const fetchGeoPayload = cache((geoPath: string) =>
+  govdexFetchJson<GeoPayload>(`/geo/${geoPath}`, {
+    next: { revalidate: GEO_REVALIDATE_SECONDS, tags: [GEO_CACHE_TAG] },
+  } as RequestInit),
+);
